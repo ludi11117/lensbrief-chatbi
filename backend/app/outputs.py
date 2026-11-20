@@ -1,0 +1,129 @@
+from typing import Generic, Literal, TypeVar
+
+from pydantic import BaseModel
+
+from .auth import Actor
+from .schemas import DraftOutput
+
+T = TypeVar("T")
+Scope = Literal["own", "department", "all"]
+Status = Literal["draft", "published", "archived"]
+
+class Page(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    limit: int
+    offset: int
+
+class LoginResult(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"]
+    user: Actor
+
+class Asset(BaseModel):
+    id: int
+    filename: str
+    mime: str
+    size_bytes: int
+
+class CsvPreview(BaseModel):
+    headers: list[str]
+    rows: list[list[str]]
+    total_rows: int
+
+class MetricValue(BaseModel):
+    label: str
+    value: int | float | None
+
+class QuerySnapshot(BaseModel):
+    metric_name: str
+    metric_note: str
+    unit: str
+    dimension_name: str
+    scope: Scope
+    start: str
+    end: str
+    rows: list[MetricValue]
+
+class QueryResult(QuerySnapshot):
+    id: int
+
+class QueryLog(BaseModel):
+    id: int
+    user_id: int
+    department_id: int
+    dataset_id: int
+    username: str
+    dataset_name: str
+    metric: str
+    dimension: str
+    scope: Scope
+    status: Literal["ok", "denied", "invalid", "error"]
+    elapsed_ms: int
+    row_count: int
+    created_at: str
+
+class ReportRow(BaseModel):
+    id: int
+    title: str
+    description: str
+    status: Status
+    owner_id: int
+    owner_name: str
+    current_version: int | None
+    updated_at: str
+
+class ReportSnapshot(BaseModel):
+    title: str
+    description: str
+    content: str
+    dataset_id: int | None
+    query_id: int | None
+    asset_ids: list[int]
+    assets: list[Asset]
+    query: QuerySnapshot | None
+
+class Report(ReportSnapshot):
+    id: int
+    owner_id: int
+    department_id: int
+    status: Status
+    current_version: int | None
+    created_at: str
+    updated_at: str
+    has_unpublished_changes: bool
+    allowed: dict[str, bool]
+
+class Version(ReportSnapshot):
+    report_id: int
+    number: int
+    created_by: int
+    created_at: str
+    restored_from: int | None
+
+class VersionEntry(BaseModel):
+    number: int
+    created_at: str
+    restored_from: int | None
+    created_by_name: str
+
+class PublishResult(BaseModel):
+    report_id: int
+    number: int
+    status: Literal["published"]
+    restored_from: int | None
+
+class DiffItem(BaseModel):
+    field: str
+    before: str | int | list[int] | None
+    after: str | int | list[int] | None
+
+class DiffResult(BaseModel):
+    base: int
+    target: int
+    changes: list[DiffItem]
+    content_changed: bool
+
+class GeneratedDraft(DraftOutput):
+    mode: Literal["mock", "llm"]
+    query_id: int
