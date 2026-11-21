@@ -36,6 +36,20 @@ nav a.active { color: #fff; background: #26375e }
 nav a.active svg { color: #9db2ff }
 .sidebar-foot { margin-top: auto; padding: 13px 8px 1px; border-top: 1px solid #303d5b; font-size: .73rem; color: #b0bedc; display: flex; gap: 9px; align-items: center }
 .workspace { min-width: 0 }
+.table-links { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 14px }
+.table-links .el-button { padding-inline: 0 }
+.select-compact { width: min(100%, 220px) }
+.knowledge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 13px }
+.knowledge-card { display: grid; gap: 8px; text-align: left; padding: 16px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: inherit; cursor: pointer }
+.knowledge-card:hover { border-color: #a7baff; background: #f8faff }
+.knowledge-card small { color: var(--muted); font-size: .78rem }
+.card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px }
+.knowledge-item { margin-top: 12px; padding: 13px; background: #f5f7fc; border-radius: 8px; overflow-wrap: anywhere }
+.knowledge-item p { margin-top: 8px; line-height: 1.65; white-space: pre-wrap }
+.knowledge-item .section-head { margin: 0 }
+.knowledge-reference { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); color: #344461; font-size: .85rem }
+.knowledge-reference summary { color: var(--blue); cursor: pointer; font-weight: 650 }
+.knowledge-reference ul { margin: 9px 0 0; padding-left: 21px; line-height: 1.65; overflow-wrap: anywhere }
 .topbar { display: flex; justify-content: space-between; align-items: center; min-height: 70px; background: #fff; border-bottom: 1px solid var(--border); padding: 0 32px }
 .bread { display: flex; gap: 12px; align-items: center; font-size: .9rem; color: var(--muted) }
 .bread strong { color: #283654; font-weight: 650 }

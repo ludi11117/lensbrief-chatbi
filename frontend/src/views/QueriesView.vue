@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api, errorText, params } from '../api'
 import QueryPreview from '../components/QueryResult.vue'
 import { dateText, scopeText, type Page, type QueryLog, type QueryResult, type Scope } from '../types'
 
+const route = useRoute()
+const contextId = computed(() => typeof route.query.context === 'string' ? route.query.context : undefined)
 const data = ref<QueryLog[]>([])
 const total = ref(0)
 const current = ref(1)
@@ -21,7 +24,7 @@ async function load() {
   busy.value = true
   error.value = ''
   try {
-    const result = await api<Page<QueryLog>>('/queries' + params({ user_id: userId.value, start: start.value, end: end.value,
+    const result = await api<Page<QueryLog>>('/queries' + params({ user_id: userId.value, context_id: contextId.value, start: start.value, end: end.value,
       limit: 15, offset: (current.value - 1) * 15 }))
     if (seq === request) { data.value = result.items; total.value = result.total }
   } catch (err) { if (seq === request) error.value = errorText(err) } finally { if (seq === request) busy.value = false }
@@ -33,9 +36,11 @@ async function open(id: number) {
   catch (err) { error.value = errorText(err) }
 }
 onMounted(load)
+watch(contextId, filter)
 </script>
 <template>
   <div class="page-title"><h1>查询记录</h1><p>查看指标查询的执行时间、范围、返回行数和结果。</p></div>
+  <div v-if="contextId" class="section-head"><RouterLink to="/contexts" class="text-link">返回分析上下文</RouterLink><RouterLink to="/queries" class="text-link">查看全部查询</RouterLink></div>
   <section class="panel">
     <div class="section-head"><h2>执行历史</h2><span class="muted">{{ total }} 条记录</span></div>
     <form class="toolbar" @submit.prevent="filter">

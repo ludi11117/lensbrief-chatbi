@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from starlette.staticfiles import StaticFiles
 
-from .api import catalog, files, identity, reports
+from .api import catalog, files, identity, reports, workspaces
 from .auth import Denied, audit
 from .db import sqlite_engine
 from .settings import Settings
@@ -24,7 +24,7 @@ def create_app(settings: Settings | None = None, storage: ObjectStorage | None =
     app.state.session_factory = sessionmaker(bind=app.state.engine)
     app.state.storage = storage or LocalStorage(settings.files)
 
-    for module in (identity, reports, files, catalog):
+    for module in (identity, reports, files, catalog, workspaces):
         app.include_router(module.router, prefix="/api")
 
     @app.get("/api/health", tags=["运行状态"])

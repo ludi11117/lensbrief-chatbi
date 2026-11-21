@@ -7,14 +7,14 @@ from sqlalchemy.orm import Session
 from backend.app.auth import ACTIONS, passwords
 from backend.app.db import begin_write, sqlite_engine, utc_now
 from backend.app.models import (
-    datasets, departments, dimensions, metrics, permissions, reports, role_permissions, roles,
-    sales, user_roles, users,
+    datasets, departments, dimensions, knowledge_items, knowledge_packs, metrics, permissions,
+    reports, role_permissions, roles, sales, user_roles, users,
 )
 from backend.app.settings import Settings
 
 START = date(2026, 10, 1)
 PASSWORD = "LensBrief2026!"
-ANALYST_ACTIONS = set(ACTIONS) - {"user.manage", "audit.read"}
+ANALYST_ACTIONS = set(ACTIONS) - {"user.manage", "audit.read", "knowledge.manage"}
 CATALOG = [
     ("gmv", "销售额", "元", "以支付日统计人民币成交金额，含后续退款订单。"),
     ("orders", "支付订单量", "单", "按支付日汇总支付订单数。"),
@@ -27,9 +27,34 @@ DIMENSIONS = [
     ("department", "部门", "按负责销售的部门分组。"),
 ]
 
+def seed_knowledge(session, dataset_id):
+    packs = [
+        ("channel-review", "渠道销售复盘", "统一比较渠道贡献时的指标口径。",
+         [("分组口径", "渠道按成交来源划分。比较前确认统计范围与支付日期一致。", None),
+          ("销售额与净收入", "销售额含后续退款订单，不可直接作为净收入。", "gmv"),
+          ("订单量解释", "订单量按支付订单计数，同一用户可能产生多笔订单。", "orders")]),
+        ("refund-review", "退款风险排查", "用于按产品或渠道比较退款率。",
+         [("比较前检查分母", "标记订单数较低的分组，避免把小样本变化当成趋势。", None),
+          ("退款率加权", "汇总时应先合计退款数与支付订单数，再相除。", "refund_rate")]),
+    ]
+    ids = dict(session.execute(select(metrics.c.code, metrics.c.id).where(metrics.c.dataset_id == dataset_id)).all())
+    for seed_key, title, description, items in packs:
+        if session.scalar(select(knowledge_packs.c.id).where(knowledge_packs.c.seed_key == seed_key)) is not None:
+            continue
+        pack_id = session.execute(insert(knowledge_packs).values(
+            dataset_id=dataset_id, seed_key=seed_key, title=title, description=description, revision=1, updated_at=utc_now()
+        )).inserted_primary_key[0]
+        session.execute(insert(knowledge_items), [
+            dict(pack_id=pack_id, position=index, title=item, content=content, metric_id=ids.get(code))
+            for index, (item, content, code) in enumerate(items)
+        ])
+
 def seed(session):
     begin_write(session)
-    if session.scalar(select(datasets.c.id).where(datasets.c.code == "camera-sales")):
+    existing_id = session.scalar(select(datasets.c.id).where(datasets.c.code == "camera-sales"))
+    if existing_id is not None:
+        seed_knowledge(session, existing_id)
+        session.commit()
         return
     session.execute(insert(departments), [{"id": 1, "name": "华东运营"}, {"id": 2, "name": "海外运营"}])
     session.execute(insert(roles), [
@@ -55,6 +80,7 @@ def seed(session):
         dict(dataset_id=1, code=code, name=name, unit=unit, description=description)
         for code, name, unit, description in CATALOG
     ])
+    seed_knowledge(session, 1)
     session.execute(insert(dimensions), [
         dict(dataset_id=1, code=code, name=name, description=description)
         for code, name, description in DIMENSIONS

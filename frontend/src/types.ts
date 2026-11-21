@@ -3,10 +3,18 @@ export type Status = 'draft' | 'published' | 'archived'
 export interface Actor { id: number; username: string; name: string; department_id: number; roles: string[]; grants: Record<string, Scope> }
 export interface Page<T> { items: T[]; total: number; limit: number; offset: number }
 export interface Dataset { id: number; code: string; name: string; description: string }
+export interface CatalogMetric { id: number; code: string; name: string; description: string }
+export interface KnowledgeItem { title: string; content: string; metric_id: number | null }
+export interface KnowledgePackRow { id: number; dataset_id: number; title: string; description: string; revision: number; updated_at: string }
+export interface KnowledgePack extends KnowledgePackRow { items: KnowledgeItem[] }
+export interface KnowledgeSnapshot { id: number; title: string; revision: number; items: KnowledgeItem[] }
+export interface AnalysisContextInput { dataset_id: number; knowledge_pack_id: number | null; title: string; objective: string; archived: boolean }
+export interface AnalysisContext extends AnalysisContextInput { id: number; pack_title: string | null; updated_at: string }
 export interface Asset { id: number; filename: string; mime: string; size_bytes: number }
 export interface QueryResult {
   id?: number; metric_name: string; dimension_name: string; metric_note: string; unit: string;
   scope: Scope; start: string; end: string; rows: { label: string; value: number | null }[]
+  knowledge?: KnowledgeSnapshot | null
 }
 export interface ReportRow {
   id: number; title: string; description: string; status: Status; owner_id: number

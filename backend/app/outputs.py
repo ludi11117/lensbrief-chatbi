@@ -3,7 +3,7 @@ from typing import Generic, Literal, TypeVar
 from pydantic import BaseModel
 
 from .auth import Actor
-from .schemas import DraftOutput
+from .schemas import DraftOutput, KnowledgeItemInput
 
 T = TypeVar("T")
 Scope = Literal["own", "department", "all"]
@@ -35,6 +35,33 @@ class MetricValue(BaseModel):
     label: str
     value: int | float | None
 
+class KnowledgePackRow(BaseModel):
+    id: int
+    dataset_id: int
+    title: str
+    description: str
+    revision: int
+    updated_at: str
+
+class KnowledgePack(KnowledgePackRow):
+    items: list[KnowledgeItemInput]
+
+class KnowledgeSnapshot(BaseModel):
+    id: int
+    title: str
+    revision: int
+    items: list[KnowledgeItemInput]
+
+class AnalysisContext(BaseModel):
+    id: int
+    dataset_id: int
+    knowledge_pack_id: int | None
+    title: str
+    objective: str
+    archived: bool
+    updated_at: str
+    pack_title: str | None
+
 class QuerySnapshot(BaseModel):
     metric_name: str
     metric_note: str
@@ -44,6 +71,7 @@ class QuerySnapshot(BaseModel):
     start: str
     end: str
     rows: list[MetricValue]
+    knowledge: KnowledgeSnapshot | None = None
 
 class QueryResult(QuerySnapshot):
     id: int

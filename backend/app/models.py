@@ -60,6 +60,36 @@ sales = Table("sales_fact", metadata, Column("id", Integer, primary_key=True),
               Column("refunds", Integer, nullable=False))
 Index("ix_sales_dataset_day", sales.c.dataset_id, sales.c.day)
 
+knowledge_packs = Table(
+    "knowledge_pack", metadata, Column("id", Integer, primary_key=True),
+    Column("dataset_id", ForeignKey("dataset.id"), nullable=False),
+    Column("seed_key", String(32), unique=True),
+    Column("title", String(120), nullable=False),
+    Column("description", String(500), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("updated_at", String(32), nullable=False),
+)
+Index("ix_knowledge_dataset_id", knowledge_packs.c.dataset_id, knowledge_packs.c.id)
+knowledge_items = Table(
+    "knowledge_item", metadata,
+    Column("pack_id", ForeignKey("knowledge_pack.id"), primary_key=True),
+    Column("position", Integer, primary_key=True),
+    Column("metric_id", ForeignKey("metric.id")),
+    Column("title", String(120), nullable=False),
+    Column("content", String(800), nullable=False),
+)
+analysis_contexts = Table(
+    "analysis_context", metadata, Column("id", Integer, primary_key=True),
+    Column("owner_id", ForeignKey("user.id"), nullable=False),
+    Column("dataset_id", ForeignKey("dataset.id"), nullable=False),
+    Column("knowledge_pack_id", ForeignKey("knowledge_pack.id")),
+    Column("title", String(120), nullable=False),
+    Column("objective", String(500), nullable=False),
+    Column("archived", Boolean, nullable=False),
+    Column("updated_at", String(32), nullable=False),
+)
+Index("ix_context_owner_updated", analysis_contexts.c.owner_id, analysis_contexts.c.updated_at, analysis_contexts.c.id)
+
 query_logs = Table("query_log", metadata, Column("id", Integer, primary_key=True),
                    Column("user_id", ForeignKey("user.id"), nullable=False),
                    Column("department_id", ForeignKey("department.id"), nullable=False),
@@ -72,10 +102,13 @@ query_logs = Table("query_log", metadata, Column("id", Integer, primary_key=True
                    Column("elapsed_ms", Integer, nullable=False),
                    Column("row_count", Integer, nullable=False),
                    Column("result_json", Text),
-                   Column("created_at", String(32), nullable=False))
+                   Column("created_at", String(32), nullable=False),
+                   Column("context_id", ForeignKey("analysis_context.id",
+                          name="fk_query_log_context_id_analysis_context")))
 Index("ix_query_created_id", query_logs.c.created_at, query_logs.c.id)
 Index("ix_query_user_created_id", query_logs.c.user_id, query_logs.c.created_at, query_logs.c.id)
 Index("ix_query_department_created_id", query_logs.c.department_id, query_logs.c.created_at, query_logs.c.id)
+Index("ix_query_context_created_id", query_logs.c.context_id, query_logs.c.created_at, query_logs.c.id)
 
 reports = Table("report", metadata, Column("id", Integer, primary_key=True, autoincrement="ignore_fk"),
                 Column("owner_id", ForeignKey("user.id"), nullable=False),

@@ -20,5 +20,9 @@ const formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 })
       <el-table-column prop="value" :label="result.metric_name + ' / ' + result.unit" />
     </el-table>
     <p class="chart-note">{{ result.metric_note }}</p>
+    <details v-if="result.knowledge" class="knowledge-reference">
+      <summary>{{ result.knowledge.title }} · 知识包 v{{ result.knowledge.revision }}</summary>
+      <ul><li v-for="(item, index) in result.knowledge.items" :key="index"><strong>{{ item.title }}</strong> · {{ item.content }}</li></ul>
+    </details>
   </section>
 </template>

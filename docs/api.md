@@ -26,9 +26,17 @@
 | `GET /datasets/{id}/metrics` | 指标编码、名称、单位与口径分页 | dataset.read |
 | `GET /datasets/{id}/dimensions` | 维度编码、名称与口径分页 | dataset.read |
 | `POST /queries` | 执行聚合并写查询日志，返回查询 ID 和结果，HTTP 201 | dataset.query |
-| `GET /queries` | 查询日志分页，支持 `user_id`、`start`、`end` | query.read |
+| `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end` | query.read，上下文筛选限本人 |
 | `GET /queries/{id}` | 查询条件及结果，适用当前有效数据范围 | query.read |
 | `POST /drafts/generate` | 按已有聚合生成草稿，返回草稿字段和模式 | report.create、query.read |
+| `GET /knowledge/packs` | 知识包分页，可按 `dataset_id` 筛选 | dataset.read |
+| `GET /knowledge/packs/{id}` | 查看当前知识包版本与条目 | dataset.read |
+| `POST /knowledge/packs` | 创建知识包，HTTP 201 | knowledge.manage |
+| `PUT /knowledge/packs/{id}` | 修改知识包和条目，递增版本 | knowledge.manage |
+| `GET /contexts` | 本人的上下文分页，可按 `dataset_id`、`archived` 筛选 | dataset.query |
+| `POST /contexts` | 新建个人上下文，HTTP 201 | dataset.query |
+| `GET /contexts/{id}` | 查看个人上下文 | 所有者、dataset.query |
+| `PUT /contexts/{id}` | 更新目标与知识包，归档或恢复 | 所有者、dataset.query |
 | `POST /assets` | 上传，字段名 `file`，单文件 5 MiB，HTTP 201 | asset.upload |
 | `GET /assets/{id}/content` | 读取文件，可传 `report_id`、`version`、`download=true` | 所有者或关联报告权限 |
 | `GET /assets/{id}/csv` | CSV 表头、前 100 行与总行数，可传 `report_id` 与 `version` | 所有者或关联报告权限 |
@@ -75,6 +83,24 @@
 `query_id` 必须为同数据集的成功查询。新附件须由当前用户上传。表单保存后可发起发布，无需请求体。发布和回滚在同一个数据库事务中更新版本、报告指针与审计。归档是终止状态，编辑、发布或回滚会返回 409。
 
 `diff` 返回 `{base,target,changes,content_changed}`。变更条目包含 `field`、`before`、`after`，涉及标题、摘要、数据集、查询和附件 ID。
+
+### 场景知识与上下文
+
+`POST /knowledge/packs` 接受 `dataset_id`、`title`、`description` 与 `items`。条目包含 `title`、`content` 与可选 `metric_id`。空指标表示该条目适用于包内所有指标，最多保存 8 条。
+
+`POST /contexts` 示例：
+
+```json
+{
+  "dataset_id": 1,
+  "knowledge_pack_id": 1,
+  "title": "渠道周会",
+  "objective": "检查不同渠道的销售额口径",
+  "archived": false
+}
+```
+
+在 `POST /queries` 提供可选 `context_id`，查询使用该上下文选用的知识包。上下文和知识包须与查询同属一个数据集。有效引用存入响应的 `knowledge` 字段和查询快照，包含 `id`、`title`、`revision` 与 `items`。调用方可用 `GET /queries?context_id=<id>` 查看该上下文的历史。归档上下文继续保留历史，发起新查询返回 409。
 
 ### 文件权限
 

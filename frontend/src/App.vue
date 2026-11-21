@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, ChevronDown, Database, FileBarChart2, ScanLine, ShieldCheck } from 'lucide-vue-next'
+import { Activity, BookOpen, ChevronDown, Database, FileBarChart2, Folders, ScanLine, ShieldCheck } from 'lucide-vue-next'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { hasGrant, signOut, user } from './auth'
@@ -8,6 +8,8 @@ const route = useRoute()
 const router = useRouter()
 const links = [
   { path: '/reports', label: '报告中心', icon: FileBarChart2, grant: 'report.read' },
+  { path: '/contexts', label: '分析上下文', icon: Folders, grant: 'dataset.query' },
+  { path: '/knowledge', label: '场景知识包', icon: BookOpen, grant: 'dataset.read' },
   { path: '/queries', label: '查询记录', icon: Database, grant: 'query.read' },
   { path: '/access', label: '权限管理', icon: ShieldCheck, grant: 'user.manage' },
 ]

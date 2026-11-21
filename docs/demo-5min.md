@@ -16,3 +16,5 @@
 追问事务时，在 `backend/tests/test_api.py` 打开 `test_publish_failure_rolls_back_status_version_attachments_and_audit`。用例在写入审计行后注入异常，再用独立数据库会话验证报告、版本、附件关联和审计一起撤销。
 
 追问性能时，可对照 [原始样本](benchmarks/samples.csv) 和 [查询计划](benchmarks/summary.json)。
+
+可把开始时的「新建报告」换成「分析上下文」里的「新建报告」。演示前创建一个名为「十月渠道复盘」的上下文，选择「渠道销售复盘」知识包，保存分析目标。运行销售额查询后展开「知识包 v1」，查看适用的口径。生成草稿会带上知识引用，回到该上下文可查看查询历史。

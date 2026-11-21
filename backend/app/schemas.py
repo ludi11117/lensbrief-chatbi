@@ -28,6 +28,7 @@ class QueryInput(Input):
     start: date
     end: date
     scope: Literal["own", "department", "all"] | None = None
+    context_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def valid_range(self):
@@ -43,3 +44,21 @@ class DraftOutput(Input):
     title: str = Field(min_length=1, max_length=120)
     description: str = Field(max_length=500)
     content: str = Field(min_length=1, max_length=16000)
+
+class KnowledgeItemInput(Input):
+    title: str = Field(min_length=1, max_length=120)
+    content: str = Field(min_length=1, max_length=800)
+    metric_id: int | None = Field(default=None, gt=0)
+
+class KnowledgePackInput(Input):
+    dataset_id: int = Field(gt=0)
+    title: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=500)
+    items: list[KnowledgeItemInput] = Field(min_length=1, max_length=8)
+
+class ContextInput(Input):
+    dataset_id: int = Field(gt=0)
+    knowledge_pack_id: int | None = Field(default=None, gt=0)
+    title: str = Field(min_length=1, max_length=120)
+    objective: str = Field(default="", max_length=500)
+    archived: bool = False

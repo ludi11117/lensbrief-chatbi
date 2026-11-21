@@ -15,7 +15,7 @@ from .models import audit_logs, role_permissions, roles, user_roles, users
 ACTIONS = (
     "report.read", "report.create", "report.edit", "report.delete", "report.publish",
     "report.rollback", "report.archive", "asset.upload", "dataset.read", "dataset.query",
-    "query.read", "user.manage", "audit.read",
+    "query.read", "user.manage", "audit.read", "knowledge.manage",
 )
 SCOPE_RANK = {"own": 0, "department": 1, "all": 2}
 passwords = PasswordHash.recommended()

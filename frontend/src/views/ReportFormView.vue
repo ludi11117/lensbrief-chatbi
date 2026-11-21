@@ -3,10 +3,10 @@ import { ElMessage } from 'element-plus'
 import { FileUp, Play, Sparkles, X } from 'lucide-vue-next'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, errorText } from '../api'
+import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
-import { type Asset, type Dataset, type Page, type QueryResult, type Report, type Scope } from '../types'
+import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryResult, type Report, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string }
 const route = useRoute()
@@ -18,6 +18,9 @@ const media = ref<Asset[]>([])
 const result = ref<QueryResult | null>(null)
 const queryId = ref<number | null>(null)
 const datasets = ref<Dataset[]>([])
+const contexts = ref<AnalysisContext[]>([])
+const contextId = ref<number | null>(null)
+const selectedContext = computed(() => contexts.value.find(item => item.id === contextId.value))
 const metricList = ref<CatalogEntry[]>([])
 const dimensionList = ref<CatalogEntry[]>([])
 const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-01', end: '2026-10-31' })
@@ -35,15 +38,18 @@ async function refreshCatalog(id: number | null) {
   const seq = ++catalogRequest
   metricList.value = []
   dimensionList.value = []
+  contexts.value = []
   if (!id) return
   try {
-    const [metrics, dimensions] = await Promise.all([
+    const [metrics, dimensions, saved] = await Promise.all([
       api<Page<CatalogEntry>>('/datasets/' + id + '/metrics'),
       api<Page<CatalogEntry>>('/datasets/' + id + '/dimensions'),
+      hasGrant('dataset.query') ? api<Page<AnalysisContext>>('/contexts' + params({ dataset_id: id, archived: 'false', limit: 100 })) : null,
     ])
     if (catalogRequest !== seq) return
     metricList.value = metrics.items
     dimensionList.value = dimensions.items
+    contexts.value = saved?.items ?? []
     if (!metrics.items.some(item => item.code === fields.metric)) fields.metric = metrics.items[0]?.code ?? ''
     if (!dimensions.items.some(item => item.code === fields.dimension)) fields.dimension = dimensions.items[0]?.code ?? ''
   } catch (err) { if (catalogRequest === seq) error.value = errorText(err) }
@@ -65,13 +71,28 @@ onMounted(async () => {
     }
     if (hasGrant('dataset.read')) {
       datasets.value = (await api<Page<Dataset>>('/datasets')).items
-      if (!reportId.value) form.dataset_id = datasets.value[0]?.id ?? null
+      if (!reportId.value) {
+        const fromContext = typeof route.query.context === 'string' && Number(route.query.context)
+        if (fromContext) {
+          const saved = await api<AnalysisContext>('/contexts/' + fromContext)
+          if (saved.archived) { error.value = '请先恢复已归档的分析上下文。'; blocked.value = true; return }
+          form.dataset_id = saved.dataset_id
+          contextId.value = saved.id
+          goal.value = saved.objective
+        } else form.dataset_id = datasets.value[0]?.id ?? null
+      }
     }
   } catch (err) { error.value = errorText(err); blocked.value = true } finally { waiting.value = false }
 })
 
 function changeDataset(value: number | null) {
   form.dataset_id = value ?? null
+  changeContext(null)
+}
+function changeContext(value: number | null) {
+  const previous = selectedContext.value?.objective
+  contextId.value = value || null
+  if (!goal.value || goal.value === previous) goal.value = selectedContext.value?.objective ?? ''
   result.value = null
   queryId.value = null
 }
@@ -82,7 +103,7 @@ async function runQuery() {
     const grant = user.value?.grants['dataset.query']
     const scope: Scope = grant === 'own' ? 'own' : 'department'
     const response = await api<QueryResult & { id: number }>('/queries', {
-      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...fields, scope }),
+      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...fields, scope, context_id: contextId.value }),
     })
     if (reportId.value && result.value && queryId.value) {
       ElMessage.info('本次查询将替换工作稿关联的数据。')
@@ -154,6 +175,14 @@ async function save() {
           <el-option v-for="item in datasets" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
         <template v-if="form.dataset_id && hasGrant('dataset.query')">
+          <template v-if="contexts.length">
+            <label>分析上下文</label>
+            <el-select :model-value="contextId ?? undefined" aria-label="分析上下文" clearable placeholder="选填"
+                       :disabled="querying || generating" @update:model-value="changeContext">
+              <el-option v-for="item in contexts" :key="item.id" :value="item.id" :label="item.title" />
+            </el-select>
+            <p v-if="selectedContext?.pack_title" class="muted">使用知识包 · {{ selectedContext.pack_title }}</p>
+          </template>
           <div class="field-grid"><div><label>指标</label><el-select v-model="fields.metric" aria-label="指标"><el-option v-for="item in metricList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div>
             <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
           <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" /></div>
