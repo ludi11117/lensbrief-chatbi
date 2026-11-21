@@ -128,7 +128,8 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
           <div class="section-head"><h2>报告预览</h2><span class="version-label">{{ selectedNumber ? '历史版本 v' + selectedNumber : report.status === 'archived' ? '归档版本' : '当前工作稿' }}</span></div>
           <h3 class="preview-title">{{ showing.title }}</h3>
           <p v-if="showing.description" class="preview-description">{{ showing.description }}</p>
-          <QueryPreview v-if="showing.query" :result="showing.query" />
+          <QueryPreview v-if="showing.query" :result="showing.query"
+                        :export-name="'report-' + id + (discussionVersion ? '-v' + discussionVersion : '-draft')" />
           <div class="report-body">{{ showing.content || '暂无正文。' }}</div>
           <div v-if="showing.assets.length" class="attachment-list">
             <h3>附件</h3>

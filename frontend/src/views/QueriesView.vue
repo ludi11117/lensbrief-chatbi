@@ -64,7 +64,7 @@ watch(contextId, filter)
     <div class="pagination"><el-pagination v-model:current-page="current" :page-size="15" :total="total" background layout="prev, pager, next" @current-change="load" /></div>
   </section>
   <el-dialog v-model="dialog" :title="'查询记录 #' + detail?.id" width="min(720px, 94vw)">
-    <QueryPreview v-if="detail?.result" :result="detail.result" />
+    <QueryPreview v-if="detail?.result" :result="detail.result" :export-name="'query-' + detail.id" />
     <h3>查询参数</h3><pre class="json-box">{{ JSON.stringify(detail?.filters, null, 2) }}</pre>
   </el-dialog>
 </template>

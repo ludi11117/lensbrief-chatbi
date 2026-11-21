@@ -204,7 +204,7 @@ async function save() {
       </template>
       <template v-if="result">
         <p v-if="hasPendingPlan" class="muted">下方仍为上次查询结果。运行新查询后会更新关联数据。</p>
-        <QueryPreview :result="result" />
+        <QueryPreview :result="result" :export-name="queryId ? 'query-' + queryId : undefined" />
         <template v-if="hasGrant('report.create')">
           <label for="goal">分析目标（可选）</label><el-input id="goal" v-model="goal" maxlength="500" placeholder="希望报告回答什么？" />
           <el-button plain type="primary" :loading="generating" :disabled="querying || planning" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>

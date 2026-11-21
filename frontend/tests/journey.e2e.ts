@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
 test('登录、草稿、附件、发布、版本对比和回滚、403、查询记录', async ({ page }) => {
   const title = '面试演示 ' + Date.now()
@@ -50,6 +51,11 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await expect(page).toHaveURL(reportUrl + '?version=1')
   await page.reload()
   await expect(page.getByText('核对渠道归类', { exact: true })).toBeVisible()
+  const exported = page.waitForEvent('download')
+  await page.getByRole('button', { name: '导出 CSV' }).click()
+  const resultFile = await exported
+  expect(resultFile.suggestedFilename()).toBe('report-' + new URL(reportUrl).pathname.split('/').pop() + '-v1.csv')
+  expect(await readFile(await resultFile.path(), 'utf8')).toContain('"渠道","销售额 (元)"')
   if (process.env.LENSBRIEF_SCREENSHOT_DIR) {
     await page.screenshot({ path: process.env.LENSBRIEF_SCREENSHOT_DIR + '/lensbrief-report.png', fullPage: true })
   }

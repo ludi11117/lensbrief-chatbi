@@ -102,6 +102,7 @@ erDiagram
 - 查询先按本人、部门或全部过滤事实表，再做聚合。查询记录还要满足当前有效的数据范围。报告可引用所有者的本人查询或归属部门的部门查询，避免通过部门报告曝光全范围快照。
 - 附件预览和下载校验报告或指定版本的权限。支持 PNG、JPEG、未加密 PDF 和 UTF-8 CSV。CSV 返回总行数，展示前 100 行。
 - 运营和数据审核者可以在自己有权访问的发布版本下留下反馈。选择版本后，可用地址栏链接分享该版本。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
+- 报告预览和查询详情可导出当前已授权的聚合结果。历史版本的文件名带版本号，数值保留原精度，CSV 用 UTF-8 编码和 BOM，便于用 Excel 打开。 [Metabase 查询结果导出](https://github.com/metabase/metabase/blob/master/docs/questions/exporting-results.md)
 
 ### 场景知识包与分析上下文
 
@@ -152,7 +153,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入一条测试报告。
 
-本地实测通过 pytest 50 项、Vitest 4 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
+本地实测通过 pytest 50 项、Vitest 6 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

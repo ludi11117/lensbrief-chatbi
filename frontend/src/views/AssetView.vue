@@ -3,6 +3,7 @@ import { Download, FileText } from 'lucide-vue-next'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, blob, errorText, params } from '../api'
+import { downloadBlob } from '../download'
 
 type Csv = { headers: string[]; rows: string[][]; total_rows: number }
 const route = useRoute()
@@ -35,10 +36,7 @@ onUnmounted(() => {
 async function download() {
   try {
     const file = await blob(path + '/content' + params({ report_id: report, version, download: 'true' }))
-    const href = URL.createObjectURL(file)
-    const link = document.createElement('a')
-    link.href = href; link.download = filename; link.click()
-    setTimeout(() => URL.revokeObjectURL(href), 1000)
+    downloadBlob(file, filename)
   } catch (err) { error.value = errorText(err) }
 }
 </script>
