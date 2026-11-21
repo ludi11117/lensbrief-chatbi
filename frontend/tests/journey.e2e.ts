@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 test('登录、草稿、附件、发布、版本对比和回滚、403、查询记录', async ({ page }) => {
   const screenshotDir = process.env.LENSBRIEF_SCREENSHOT_DIR
-  const title = screenshotDir ? '十月渠道销售复盘' : '面试演示 ' + Date.now()
+  const printDir = process.env.LENSBRIEF_PRINT_DIR
+  const title = screenshotDir || printDir ? '十月渠道销售复盘' : '面试演示 ' + Date.now()
   const revised = title + ' · 更新'
   await page.goto('/login')
   await page.getByRole('button', { name: '华东分析师' }).click()
@@ -64,6 +65,14 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
     await page.setViewportSize({ width: 1440, height: 1300 })
     await page.screenshot({ path: join(screenshotDir, 'lensbrief-report.png'), fullPage: true, animations: 'disabled' })
   }
+  if (printDir) {
+    await page.pdf({ path: join(printDir, 'lensbrief-report.pdf'), preferCSSPageSize: true, printBackground: true })
+  }
+  await page.emulateMedia({ media: 'print' })
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '版本记录' })).toBeHidden()
+  await expect(page.getByText('核对渠道归类', { exact: true })).toBeHidden()
+  await page.emulateMedia({ media: 'screen' })
   await page.getByRole('link', { name: /渠道样例.csv/ }).click()
   await expect(page.getByRole('heading', { name: '文件预览' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '电商平台' })).toBeVisible()

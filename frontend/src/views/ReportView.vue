@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FileText, GitCompareArrows, History } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { FileText, GitCompareArrows, History, Printer } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, api, errorText, params } from '../api'
 import QueryPreview from '../components/QueryResult.vue'
@@ -32,6 +32,8 @@ const errorCode = ref<number>()
 const showing = computed(() => selected.value ?? report.value)
 const discussionVersion = computed(() => selectedNumber.value ??
   (report.value?.has_unpublished_changes ? null : report.value?.current_version))
+const printable = ref<HTMLElement>()
+const expandedForPrint: HTMLDetailsElement[] = []
 const labels: Record<string, string> = { title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID' }
 const format = (value: unknown) => Array.isArray(value) ? value.join('、') || '—' : String(value ?? '—')
 function diffStyle(line: string, index: number) {
@@ -57,7 +59,27 @@ async function load() {
   catch (err) { error.value = errorText(err); errorCode.value = err instanceof ApiError ? err.status : undefined }
   finally { loading.value = false }
 }
-onMounted(async () => { await load(); if (report.value) await previewRouteVersion() })
+function beforePrint() {
+  for (const details of printable.value?.querySelectorAll<HTMLDetailsElement>('details:not([open])') ?? []) {
+    expandedForPrint.push(details)
+    details.open = true
+  }
+}
+function afterPrint() {
+  for (const details of expandedForPrint.splice(0)) details.open = false
+}
+function printReport() { window.print() }
+
+onMounted(async () => {
+  window.addEventListener('beforeprint', beforePrint)
+  window.addEventListener('afterprint', afterPrint)
+  await load()
+  if (report.value) await previewRouteVersion()
+})
+onUnmounted(() => {
+  window.removeEventListener('beforeprint', beforePrint)
+  window.removeEventListener('afterprint', afterPrint)
+})
 watch(() => route.query.version, () => { if (report.value) void previewRouteVersion() })
 
 function previewRouteVersion() {
@@ -122,19 +144,23 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
 }
 </script>
 <template>
-  <RouterLink class="text-link" to="/reports">返回报告中心</RouterLink>
-  <el-alert v-if="error" class="page-alert" :title="errorCode ? errorCode + ' · ' + error : error" type="error" show-icon :closable="false" />
+  <RouterLink class="text-link print-hide" to="/reports">返回报告中心</RouterLink>
+  <el-alert v-if="error" class="page-alert print-hide" :title="errorCode ? errorCode + ' · ' + error : error" type="error" show-icon :closable="false" />
   <div v-loading="loading" class="detail-page">
     <template v-if="report && showing">
-      <div class="page-title split">
+      <div class="page-title split print-hide">
         <div><div class="inline"><StatusPill :status="report.status" /><span v-if="report.current_version" class="muted">当前发布 v{{ report.current_version }}</span></div>
           <h1>{{ report.title }}</h1><p>更新于 {{ dateText(report.updated_at) }}<span v-if="report.has_unpublished_changes"> · 工作稿有未发布更改</span></p></div>
         <ReportActions :status="report.status" :allowed="report.allowed" :loading="busy" @edit="router.push(path + '/edit')" @publish="perform('publish')" @archive="perform('archive')" @remove="perform('remove')" />
       </div>
       <div class="detail-grid">
-        <article class="panel">
-          <div class="section-head"><h2>报告预览</h2><span class="version-label">{{ selectedNumber ? '历史版本 v' + selectedNumber : report.status === 'archived' ? '归档版本' : '当前工作稿' }}</span></div>
-          <h3 class="preview-title">{{ showing.title }}</h3>
+        <article ref="printable" class="panel printable-report">
+          <div class="section-head print-hide"><h2>报告预览</h2>
+            <div class="inline"><span class="version-label">{{ selectedNumber ? '历史版本 v' + selectedNumber : report.status === 'archived' ? '归档版本' : '当前工作稿' }}</span>
+              <el-button size="small" @click="printReport"><Printer :size="15" /> 打印报告</el-button></div>
+          </div>
+          <div class="print-heading"><span>LensBrief · {{ discussionVersion ? 'v' + discussionVersion : '工作稿' }}</span><h1>{{ showing.title }}</h1></div>
+          <h3 class="preview-title print-hide">{{ showing.title }}</h3>
           <p v-if="showing.description" class="preview-description">{{ showing.description }}</p>
           <QueryPreview v-if="showing.query" :result="showing.query"
                         :export-name="'report-' + id + (discussionVersion ? '-v' + discussionVersion : '-draft')" />
