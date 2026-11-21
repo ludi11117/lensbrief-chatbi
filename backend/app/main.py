@@ -17,6 +17,8 @@ def create_app(settings: Settings | None = None, storage: ObjectStorage | None =
     settings = settings or Settings.from_env()
     if settings.draft_mode not in {"mock", "llm"}:
         raise ValueError("LENSBRIEF_DRAFT_MODE must be mock or llm")
+    if settings.planner_mode not in {"rules", "llm"}:
+        raise ValueError("LENSBRIEF_PLANNER_MODE must be rules or llm")
     app = FastAPI(title="LensBrief ChatBI", version="1.0.0", docs_url="/api/docs",
                   redoc_url=None, openapi_url="/api/openapi.json", swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect")
     app.state.settings = settings
@@ -31,7 +33,7 @@ def create_app(settings: Settings | None = None, storage: ObjectStorage | None =
     def health():
         with app.state.engine.connect() as connection:
             connection.execute(text("SELECT id FROM dataset LIMIT 1"))
-        return {"status": "ok", "draft_mode": settings.draft_mode}
+        return {"status": "ok", "draft_mode": settings.draft_mode, "planner_mode": settings.planner_mode}
 
     @app.exception_handler(Denied)
     def forbidden(request: Request, exc: Denied):

@@ -78,6 +78,7 @@ class QueryResult(QuerySnapshot):
 
 class QueryPlan(QueryInput):
     notes: list[str]
+    source: Literal["rules", "llm"]
 
 class QueryLog(BaseModel):
     id: int

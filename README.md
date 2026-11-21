@@ -113,19 +113,26 @@ erDiagram
 
 在同一分析上下文完成首次查询后，可以追问「改按产品」或「改看退款率」。省略的条件沿用当前账号在该上下文的最近一次成功查询。主流程可离线运行，解析规则覆盖一个指标、一个分组维度和一个连续日期区间。报表查询按角色限定在本人或部门的数据范围内。
 
+可选的模型辅助用于匹配规则未识别的指标或维度，例如「比较各款的下单笔数」。页面会标注解析来源和数据范围，日期与范围由服务端确定。
+
+这里参考了 Apache Superset 的指标／维度查询接口，以及 WrenAI 将语义目录与访问控制结合的做法。LensBrief 将两者的设计应用到本地 SQLite 和报告确认流程。 [Apache Superset 语义层](https://github.com/apache/superset/blob/master/docs/docs/using-superset/using-ai-with-superset.mdx#query-the-semantic-layer) · [WrenAI 核心语义引擎](https://github.com/Canner/WrenAI/tree/main/core/wren-core/core)
+
 ## 可选模型
 
-默认使用 `LENSBRIEF_DRAFT_MODE=mock`。使用真实模型时，将 `.env.example` 复制为 `.env` 并设置下列变量。Windows 本地方案在 PowerShell 会话设置同名环境变量。
+默认使用 `LENSBRIEF_DRAFT_MODE=mock` 和 `LENSBRIEF_PLANNER_MODE=rules`。使用真实模型时，将 `.env.example` 复制为 `.env` 并设置相应变量。Windows 本地方案在 PowerShell 会话设置同名环境变量。
 
 | 变量 | 值 |
 | --- | --- |
 | `LENSBRIEF_DRAFT_MODE` | `llm` |
+| `LENSBRIEF_PLANNER_MODE` | `llm` 开启模型辅助提问，默认 `rules` |
 | `LENSBRIEF_MODEL_URL` | 供应商提供的 API 基础地址，如 `https://…/v1` |
 | `LENSBRIEF_MODEL` | 模型 ID |
 | `LENSBRIEF_MODEL_KEY` | 模型密钥 |
 | `LENSBRIEF_JWT_SECRET` | 本地示例之外使用至少 32 字节的随机值 |
 
 模型请求经 `/chat/completions` 发送分析目标、权限过滤后的聚合结果与显式选用的知识条目。草稿输出经过结构校验，由用户保存和发布。
+
+提问和草稿模式可独立开启。模型辅助提问仅发送问题文本、目录与已识别的编码，响应只允许补齐指标和维度。日期及权限范围由服务端确定，已识别的条件会逐项核对。可直接用明确的指标与维度继续走规则解析。
 
 ## 测试
 
@@ -142,7 +149,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入一条测试报告。
 
-本地实测通过 pytest 40 项、Vitest 4 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
+本地实测通过 pytest 47 项、Vitest 4 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

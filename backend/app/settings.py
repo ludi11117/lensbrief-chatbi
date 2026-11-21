@@ -13,6 +13,7 @@ class Settings:
     model_url: str = ""
     model_name: str = ""
     model_key: str = ""
+    planner_mode: str = "rules"
 
     @classmethod
     def from_env(cls):
@@ -21,4 +22,4 @@ class Settings:
                    data / "files", os.environ.get("LENSBRIEF_JWT_SECRET", "lensbrief-local-development-only-change-me"),
                    os.environ.get("LENSBRIEF_DRAFT_MODE", "mock"),
                    os.environ.get("LENSBRIEF_MODEL_URL", ""), os.environ.get("LENSBRIEF_MODEL", ""),
-                   os.environ.get("LENSBRIEF_MODEL_KEY", ""))
+                   os.environ.get("LENSBRIEF_MODEL_KEY", ""), os.environ.get("LENSBRIEF_PLANNER_MODE", "rules"))

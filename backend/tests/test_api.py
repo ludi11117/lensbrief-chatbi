@@ -8,7 +8,7 @@ from PIL import Image
 from pypdf import PdfWriter
 from sqlalchemy import func, select
 
-from backend.app.api import catalog, reports as report_api
+from backend.app.api import reports as report_api
 from backend.app.models import audit_logs, reports, version_assets, versions
 
 def make_report(client, headers, body):
@@ -210,7 +210,7 @@ def test_openai_compatible_draft_contract_without_network(client, auth, query_bo
             "choices": [{"message": {"content": '{"title":"渠道分析","description":"十月","content":"检查数据口径。"}'}}]
         })
 
-    monkeypatch.setattr(catalog.httpx, "post", fake_post)
+    monkeypatch.setattr(httpx, "post", fake_post)
     result = client.post("/api/drafts/generate", headers=headers, json={"query_id": query_id, "goal": "复盘"})
     assert (result.status_code, result.json()["mode"], result.json()["title"]) == (200, "llm", "渠道分析")
     assert seen[0]["model"] == "fixture"

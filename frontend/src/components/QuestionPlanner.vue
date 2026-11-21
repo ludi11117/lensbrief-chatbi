@@ -2,21 +2,19 @@
 import { MessageSquareText } from 'lucide-vue-next'
 import { onBeforeUnmount, ref } from 'vue'
 import { api, errorText } from '../api'
-import type { QueryPlan } from '../types'
+import { scopeText, type QueryPlan } from '../types'
 
 const props = defineProps<{ datasetId: number; contextId: number | null; disabled?: boolean }>()
 const emit = defineEmits<{ apply: [plan: QueryPlan]; planning: [active: boolean] }>()
 const question = ref('')
 const error = ref('')
-const notes = ref<string[]>([])
-const resolved = ref(false)
+const resolved = ref<QueryPlan | null>(null)
 const busy = ref(false)
 let requestId = 0
 
 function clearFeedback() {
   error.value = ''
-  notes.value = []
-  resolved.value = false
+  resolved.value = null
 }
 onBeforeUnmount(() => {
   requestId++
@@ -34,8 +32,7 @@ async function resolve() {
     }) })
     if (requestId === id) {
       emit('apply', plan)
-      resolved.value = true
-      notes.value = plan.notes
+      resolved.value = plan
     }
   } catch (err) {
     if (requestId === id) error.value = errorText(err)
@@ -59,7 +56,8 @@ async function resolve() {
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-if="resolved" class="plan-feedback" aria-live="polite">
       <strong>已填入查询条件。请核对后运行查询。</strong>
-      <p v-for="note in notes" :key="note">{{ note }}</p>
+      <p>{{ resolved.source === 'llm' ? '模型辅助解析' : '规则解析' }} · {{ scopeText[resolved.scope] }}范围</p>
+      <p v-for="note in resolved.notes" :key="note">{{ note }}</p>
     </div>
   </form>
 </template>
