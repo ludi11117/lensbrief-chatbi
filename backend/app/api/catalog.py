@@ -11,8 +11,9 @@ from pydantic import ValidationError
 from ..auth import Db, Denied, Identity, SCOPE_RANK, scope_filter
 from ..db import begin_write, json_dump, utc_now
 from ..models import datasets, departments, dimensions, metrics, query_logs, sales, users
-from ..outputs import GeneratedDraft, Page, QueryLog, QueryResult
-from ..schemas import DraftInput, DraftOutput, QueryInput
+from ..outputs import GeneratedDraft, Page, QueryLog, QueryPlan, QueryResult
+from ..planning import PlanError, resolve_question
+from ..schemas import DraftInput, DraftOutput, QueryInput, QueryPlanInput
 from .common import Limit, Offset, count, page, take
 from .workspaces import knowledge_snapshot, owned_context
 
@@ -41,6 +42,41 @@ def list_metrics(dataset_id: int, session: Db, actor: Identity, limit: Limit = 2
 @router.get("/datasets/{dataset_id}/dimensions")
 def list_dimensions(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
     return list_catalog(session, actor, dimensions, dataset_id, limit, offset)
+
+@router.post("/queries/plan", response_model=QueryPlan)
+def plan_query(payload: QueryPlanInput, session: Db, actor: Identity):
+    maximum = actor.scope("dataset.query", "dataset", payload.dataset_id)
+    scope = "own" if maximum == "own" else "department"
+    take(session, datasets, payload.dataset_id, "数据集")
+    previous = None
+    if payload.context_id is not None:
+        context = owned_context(session, actor, payload.context_id, active=True)
+        if context["dataset_id"] != payload.dataset_id:
+            raise HTTPException(422, "查询数据集必须与分析上下文一致。")
+        allowed = ("own",) if scope == "own" else ("own", "department")
+        prior = session.scalar(select(query_logs.c.filters_json).where(
+            query_logs.c.context_id == payload.context_id, query_logs.c.user_id == actor.id,
+            query_logs.c.dataset_id == payload.dataset_id, query_logs.c.status == "ok",
+            query_logs.c.scope.in_(allowed)
+        ).order_by(query_logs.c.created_at.desc(), query_logs.c.id.desc()).limit(1))
+        if prior:
+            previous = json.loads(prior)
+    bounds = session.execute(select(func.min(sales.c.day), func.max(sales.c.day)).where(
+        sales.c.dataset_id == payload.dataset_id, scope_filter(sales, scope, actor)
+    )).one()
+    available = tuple(date.fromisoformat(day) if day else None for day in bounds)
+    try:
+        plan = resolve_question(payload.question, available, previous)
+    except PlanError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+    metric = session.scalar(select(metrics.c.id).where(metrics.c.dataset_id == payload.dataset_id,
+                                                       metrics.c.code == plan["metric"]))
+    dimension = session.scalar(select(dimensions.c.id).where(dimensions.c.dataset_id == payload.dataset_id,
+                                                             dimensions.c.code == plan["dimension"]))
+    if not metric or not dimension:
+        raise HTTPException(422, "该数据集不支持解析出的指标或维度。")
+    return {**plan, "dataset_id": payload.dataset_id, "context_id": payload.context_id, "scope": scope}
 
 def save_query(session, actor, payload, scope, status, started, result=None):
     query_id = session.execute(insert(query_logs).values(

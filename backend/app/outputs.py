@@ -3,7 +3,7 @@ from typing import Generic, Literal, TypeVar
 from pydantic import BaseModel
 
 from .auth import Actor
-from .schemas import DraftOutput, KnowledgeItemInput
+from .schemas import DraftOutput, KnowledgeItemInput, QueryInput
 
 T = TypeVar("T")
 Scope = Literal["own", "department", "all"]
@@ -75,6 +75,9 @@ class QuerySnapshot(BaseModel):
 
 class QueryResult(QuerySnapshot):
     id: int
+
+class QueryPlan(QueryInput):
+    notes: list[str]
 
 class QueryLog(BaseModel):
     id: int

@@ -25,6 +25,7 @@
 | `GET /datasets` | 数据集目录分页 | dataset.read |
 | `GET /datasets/{id}/metrics` | 指标编码、名称、单位与口径分页 | dataset.read |
 | `GET /datasets/{id}/dimensions` | 维度编码、名称与口径分页 | dataset.read |
+| `POST /queries/plan` | 将提问解析成可确认的指标、维度、日期和范围 | dataset.query，上下文限本人 |
 | `POST /queries` | 执行聚合并写查询日志，返回查询 ID 和结果，HTTP 201 | dataset.query |
 | `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end` | query.read，上下文筛选限本人 |
 | `GET /queries/{id}` | 查询条件及结果，适用当前有效数据范围 | query.read |
@@ -64,6 +65,12 @@
 ```
 
 `scope` 可省略，默认采用当前权限的最广数据范围。指定超出授权的范围会返回 403。查询日期包含两端，最长 366 天。查询日志的日期筛选以 UTC 日期为准，含起止日。完成的查询、范围拒绝与目录校验失败均写入日志。无法通过请求结构校验的请求，以及指向不存在数据集的请求，在执行前终止。
+
+### 解析自然语言问题
+
+`POST /queries/plan` 接受 `{"dataset_id":1,"question":"2026年10月按渠道看销售额"}`，可加 `context_id`。响应包含 `dataset_id`、`context_id`、`metric`、`dimension`、`start`、`end`、`scope` 及说明数组 `notes`。界面展示解析结果，用户确认后把查询字段提交到 `POST /queries`。规划阶段只生成查询条件，查询日志从聚合执行阶段开始记录。
+
+日期可用整月、单日或 `YYYY-MM-DD 至 YYYY-MM-DD` 区间。省略日期时，普通提问选用授权范围内最近最多 30 个自然日。追问以「改按」「改看」等开头，沿用该用户在同一上下文内可用的最新成功查询。含歧义或超出规则范围的问题返回 422，归档上下文返回 409。
 
 ### 草稿、发布与比较
 

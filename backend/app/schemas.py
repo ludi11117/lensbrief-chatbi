@@ -36,6 +36,11 @@ class QueryInput(Input):
             raise ValueError("日期范围需正向且最多覆盖 366 天。")
         return self
 
+class QueryPlanInput(Input):
+    dataset_id: int = Field(gt=0)
+    context_id: int | None = Field(default=None, gt=0)
+    question: str = Field(min_length=3, max_length=200)
+
 class DraftInput(Input):
     query_id: int = Field(gt=0)
     goal: str = Field(default="", max_length=500)

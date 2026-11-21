@@ -6,7 +6,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
-import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryResult, type Report, type Scope } from '../types'
+import QuestionPlanner from '../components/QuestionPlanner.vue'
+import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string }
 const route = useRoute()
@@ -27,6 +28,8 @@ const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-0
 const waiting = ref(false)
 const saving = ref(false)
 const querying = ref(false)
+const planning = ref(false)
+const hasPendingPlan = ref(false)
 const generating = ref(false)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
@@ -95,6 +98,11 @@ function changeContext(value: number | null) {
   if (!goal.value || goal.value === previous) goal.value = selectedContext.value?.objective ?? ''
   result.value = null
   queryId.value = null
+  hasPendingPlan.value = false
+}
+function applyPlan({ metric, dimension, start, end }: QueryPlan) {
+  hasPendingPlan.value = Boolean(result.value)
+  Object.assign(fields, { metric, dimension, start, end })
 }
 async function runQuery() {
   querying.value = true
@@ -110,6 +118,7 @@ async function runQuery() {
     }
     result.value = response
     queryId.value = response.id
+    hasPendingPlan.value = false
   } catch (err) { error.value = errorText(err) } finally { querying.value = false }
 }
 async function generateDraft() {
@@ -171,30 +180,34 @@ async function save() {
     <section class="panel form-panel">
       <h2>关联数据</h2>
       <template v-if="hasGrant('dataset.read')">
-        <label>数据集</label><el-select aria-label="数据集" :model-value="form.dataset_id ?? undefined" clearable placeholder="选择数据集" @change="changeDataset">
+        <label>数据集</label><el-select aria-label="数据集" :model-value="form.dataset_id ?? undefined" :disabled="querying || planning || generating" clearable placeholder="选择数据集" @change="changeDataset">
           <el-option v-for="item in datasets" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
         <template v-if="form.dataset_id && hasGrant('dataset.query')">
           <template v-if="contexts.length">
             <label>分析上下文</label>
             <el-select :model-value="contextId ?? undefined" aria-label="分析上下文" clearable placeholder="选填"
-                       :disabled="querying || generating" @update:model-value="changeContext">
+                       :disabled="querying || planning || generating" @update:model-value="changeContext">
               <el-option v-for="item in contexts" :key="item.id" :value="item.id" :label="item.title" />
             </el-select>
             <p v-if="selectedContext?.pack_title" class="muted">使用知识包 · {{ selectedContext.pack_title }}</p>
           </template>
-          <div class="field-grid"><div><label>指标</label><el-select v-model="fields.metric" aria-label="指标"><el-option v-for="item in metricList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div>
-            <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
-          <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" /></div>
-            <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" /></div></div>
-          <el-button :loading="querying" :disabled="!fields.start || !fields.end || !metricList.length" @click="runQuery"><Play :size="15" /> 运行指标查询</el-button>
+          <QuestionPlanner v-if="metricList.length" :key="`${form.dataset_id}-${contextId}`"
+                           :dataset-id="form.dataset_id" :context-id="contextId"
+                           :disabled="querying || generating" @apply="applyPlan" @planning="planning = $event" />
+          <div class="field-grid"><div><label>指标</label><el-select v-model="fields.metric" aria-label="指标" :disabled="planning || querying"><el-option v-for="item in metricList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div>
+            <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度" :disabled="planning || querying"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
+          <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" :disabled="planning || querying" /></div>
+            <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" :disabled="planning || querying" /></div></div>
+          <el-button :loading="querying" :disabled="planning || generating || !fields.start || !fields.end || !metricList.length" @click="runQuery"><Play :size="15" /> 运行指标查询</el-button>
         </template>
       </template>
       <template v-if="result">
+        <p v-if="hasPendingPlan" class="muted">下方仍为上次查询结果。运行新查询后会更新关联数据。</p>
         <QueryPreview :result="result" />
         <template v-if="hasGrant('report.create')">
           <label for="goal">分析目标（可选）</label><el-input id="goal" v-model="goal" maxlength="500" placeholder="希望报告回答什么？" />
-          <el-button plain type="primary" :loading="generating" :disabled="querying" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>
+          <el-button plain type="primary" :loading="generating" :disabled="querying || planning" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>
         </template>
       </template>
     </section>

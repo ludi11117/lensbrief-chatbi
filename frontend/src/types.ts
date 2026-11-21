@@ -16,6 +16,10 @@ export interface QueryResult {
   scope: Scope; start: string; end: string; rows: { label: string; value: number | null }[]
   knowledge?: KnowledgeSnapshot | null
 }
+export interface QueryPlan {
+  dataset_id: number; context_id: number | null; scope: Scope
+  metric: string; dimension: string; start: string; end: string; notes: string[]
+}
 export interface ReportRow {
   id: number; title: string; description: string; status: Status; owner_id: number
   owner_name: string; current_version: number | null; updated_at: string
