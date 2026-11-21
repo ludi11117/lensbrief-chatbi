@@ -162,6 +162,7 @@ class DiffResult(BaseModel):
     target: int
     changes: list[DiffItem]
     content_changed: bool
+    content_diff: list[str]
 
 class GeneratedDraft(DraftOutput):
     mode: Literal["mock", "llm"]

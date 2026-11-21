@@ -1,4 +1,5 @@
 import json
+from difflib import unified_diff
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -212,10 +213,12 @@ def diff(report_id: int, base: int, target: int, session: Db, actor: Identity):
     get_report(session, actor, report_id, "report.read")
     before = json.loads(get_version(session, report_id, base)["snapshot_json"])
     after = json.loads(get_version(session, report_id, target)["snapshot_json"])
+    content_diff = list(unified_diff(before["content"].split("\n"), after["content"].split("\n"),
+                                     fromfile=f"v{base}", tofile=f"v{target}", n=2, lineterm=""))
     return {"base": base, "target": target, "changes": [
         {"field": key, "before": before[key], "after": after[key]}
         for key in METADATA if before[key] != after[key]
-    ], "content_changed": before["content"] != after["content"]}
+    ], "content_changed": bool(content_diff), "content_diff": content_diff}
 
 @router.get("/{report_id}/versions/{number}", response_model=Version)
 def version_detail(report_id: int, number: int, session: Db, actor: Identity):

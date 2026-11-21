@@ -157,6 +157,12 @@ nav a.active svg { color: #9db2ff }
 .compare-controls { margin-bottom: 15px }
 .compare-controls label { display: grid; gap: 6px }
 .compare-controls .el-button { align-self: end }
+.content-diff-heading { margin: 15px 0 8px }
+.content-diff { margin: 0; border: 1px solid var(--border); border-radius: 8px; max-height: 300px; overflow: auto }
+.content-diff span { display: block; padding: 1px 8px; line-height: 1.5; min-height: 1.5em; white-space: pre-wrap; overflow-wrap: anywhere }
+.diff-meta { background: #eef3ff; color: #345184 }
+.diff-added { background: #eaf7ed; color: #205b35 }
+.diff-removed { background: #fff0ef; color: #973b33 }
 .stack { display: grid; gap: 18px }
 .role-tag { margin-right: 5px }
 .grant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px,1fr)); gap: 8px }

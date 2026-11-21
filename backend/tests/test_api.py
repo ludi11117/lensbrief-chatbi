@@ -90,6 +90,7 @@ def test_version_diff_and_rollback_preserve_history(client, auth, body):
     diff = client.get("/api" + path + "/versions/diff?base=1&target=2", headers=headers).json()
     assert diff["changes"] == [{"field": "title", "before": body["title"], "after": "新标题"}]
     assert diff["content_changed"]
+    assert diff["content_diff"] == ["--- v1", "+++ v2", "@@ -1 +1 @@", "-版本一", "+版本二"]
     restored = do(client, path + "/rollback/1", headers)
     assert (restored["number"], restored["restored_from"]) == (3, 1)
     assert client.get("/api" + path, headers=headers).json()["content"] == "版本一"

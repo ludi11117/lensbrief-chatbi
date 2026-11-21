@@ -34,6 +34,12 @@ const discussionVersion = computed(() => selectedNumber.value ??
   (report.value?.has_unpublished_changes ? null : report.value?.current_version))
 const labels: Record<string, string> = { title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID' }
 const format = (value: unknown) => Array.isArray(value) ? value.join('、') || '—' : String(value ?? '—')
+function diffStyle(line: string, index: number) {
+  if (index < 2 || line.startsWith('@@')) return 'diff-meta'
+  if (line.startsWith('+')) return 'diff-added'
+  if (line.startsWith('-')) return 'diff-removed'
+  return ''
+}
 let previewRequest = 0
 
 async function loadVersions() {
@@ -163,7 +169,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       </div>
     </template>
   </div>
-  <el-dialog v-model="compareOpen" title="版本元数据对比" width="min(620px, 94vw)">
+  <el-dialog v-model="compareOpen" title="版本对比" width="min(760px, 94vw)">
     <div class="compare-controls"><label>基准版本 <el-input-number v-model="base" :min="1" :max="report?.current_version ?? 1" /></label>
       <label>目标版本 <el-input-number v-model="target" :min="1" :max="report?.current_version ?? 1" /></label>
       <el-button type="primary" @click="compare">开始对比</el-button></div>
@@ -175,7 +181,10 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
         <el-table-column label="新值"><template #default="{ row }">{{ format(row.after) }}</template></el-table-column>
       </el-table>
       <p v-else>元数据相同。</p>
-      <p>正文{{ comparison.content_changed ? '有变化' : '相同' }}。</p>
+      <h3 class="content-diff-heading">正文变更</h3>
+      <pre v-if="comparison.content_changed" class="content-diff" tabindex="0" aria-label="正文逐行对比"><span
+        v-for="(line, index) in comparison.content_diff" :key="index" :class="diffStyle(line, index)">{{ line }}</span></pre>
+      <p v-else>正文相同。</p>
     </template>
   </el-dialog>
 </template>

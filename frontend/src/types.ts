@@ -38,6 +38,7 @@ export interface VersionRow { number: number; created_at: string; restored_from:
 export interface Feedback { id: number; author_name: string; body: string; created_at: string }
 export interface VersionDiff {
   base: number; target: number; content_changed: boolean
+  content_diff: string[]
   changes: { field: string; before: unknown; after: unknown }[]
 }
 export interface QueryLog {
