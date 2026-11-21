@@ -1,4 +1,5 @@
 export type Scope = 'own' | 'department' | 'all'
+export type ReportQueryScope = Exclude<Scope, 'all'>
 export type Status = 'draft' | 'published' | 'archived'
 export type ReportSummary = Record<Status | 'total', number>
 export interface Actor { id: number; username: string; name: string; department_id: number; roles: string[]; grants: Record<string, Scope> }
@@ -21,7 +22,7 @@ export interface QueryResult {
   comparison?: { start: string; end: string; rows: { label: string; value: number | null }[] } | null
 }
 export interface QueryPlan {
-  dataset_id: number; context_id: number | null; scope: Scope
+  dataset_id: number; context_id: number | null; scope: ReportQueryScope
   metric: string; dimension: string; start: string; end: string; notes: string[]
   source: 'rules' | 'llm'
   channel: string | null

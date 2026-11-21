@@ -117,6 +117,15 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   expect((await filtered).status()).toBe(200)
   await expect(page.getByRole('row').filter({ hasText: 'report #' + reportUrl.split('/').pop() })
     .filter({ hasText: 'overseas' }).getByRole('cell', { name: 'report.read', exact: true })).toBeVisible()
+  await page.goto('/reports/new')
+  await page.getByRole('combobox', { name: '查询范围' }).press('ArrowDown')
+  await page.getByRole('option', { name: '本人' }).click()
+  await page.getByLabel('自然语言提问').fill('2026年10月按渠道看销售额')
+  await page.getByRole('button', { name: '解析问题' }).click()
+  await expect(page.getByText('规则解析 · 本人范围')).toBeVisible()
+  await page.getByRole('button', { name: '运行指标查询' }).click()
+  await expect(page.getByText(/2026-10-31 · 本人范围/)).toBeVisible()
+  await expect(page.getByText('该范围暂无结果')).toBeVisible()
 })
 
 test('个人上下文引用知识包并保留查询历史', async ({ page }) => {

@@ -72,7 +72,7 @@
 
 对渠道、产品或部门分组可发送 `compare_previous: true`。服务端使用当前范围前方紧邻的等长区间，在相同权限和指标口径下汇总，并返回 `comparison` 内的 `start`、`end`、`rows`。未勾选对照时该字段为 `null`。查询日志的 `row_count` 仍为本期行数，报告快照会保存两期。
 
-`GET /datasets/{id}/dimensions` 的 `channel` 维度可返回 `values`。查询可传其中一个值到可选的 `channel` 字段，两期对照使用相同筛选。该字段也会保存在查询结果和报告快照。
+`GET /datasets/{id}/dimensions` 的 `channel` 维度可返回 `values`。维度目录和问题解析可传入 `scope=own` 或 `department`，并按该范围返回可用渠道。查询可传其中一个值到可选的 `channel` 字段，两期对照使用相同筛选。该字段也会保存在查询结果和报告快照。
 
 ### 解析自然语言问题
 

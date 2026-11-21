@@ -8,7 +8,7 @@ import { hasGrant, user } from '../auth'
 import AssetPicker from '../components/AssetPicker.vue'
 import QueryPreview from '../components/QueryResult.vue'
 import QuestionPlanner from '../components/QuestionPlanner.vue'
-import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
+import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type ReportQueryScope, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string; values?: string[] }
 const route = useRoute()
@@ -27,13 +27,19 @@ const selectedContext = computed(() => contexts.value.find(item => item.id === c
 const metricList = ref<CatalogEntry[]>([])
 const dimensionList = ref<CatalogEntry[]>([])
 const channels = computed(() => dimensionList.value.find(item => item.code === 'channel')?.values ?? [])
+const canQueryDepartment = computed(() => ['department', 'all'].includes(user.value?.grants['dataset.query'] ?? ''))
+const queryScope = ref<ReportQueryScope>(canQueryDepartment.value ? 'department' : 'own')
 const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-01', end: '2026-10-31', channel: null as string | null })
 const waiting = ref(false)
 const saving = ref(false)
 const querying = ref(false)
 const planning = ref(false)
 const comparePrevious = ref(false)
-const currentFilters = computed(() => ({ ...fields, compare_previous: comparePrevious.value && fields.dimension !== 'day' }))
+const currentFilters = computed(() => ({ ...fields, scope: queryScope.value,
+  compare_previous: comparePrevious.value && fields.dimension !== 'day' }))
+function availableScope(scope: Scope): ReportQueryScope {
+  return scope === 'department' && canQueryDepartment.value ? 'department' : 'own'
+}
 const snapshotFilters = computed(() => {
   const snapshot = result.value
   if (!snapshot) return null
@@ -41,6 +47,7 @@ const snapshotFilters = computed(() => {
     metric: metricList.value.find(item => item.name === snapshot.metric_name)?.code ?? fields.metric,
     dimension: snapshot.dimension_code ?? dimensionList.value.find(item => item.name === snapshot.dimension_name)?.code ?? fields.dimension,
     start: snapshot.start, end: snapshot.end, channel: snapshot.channel ?? null,
+    scope: availableScope(snapshot.scope),
     compare_previous: Boolean(snapshot.comparison),
   }
 })
@@ -49,7 +56,7 @@ const queryChanged = computed(() => {
   const current = currentFilters.value
   return saved !== null && (saved.metric !== current.metric || saved.dimension !== current.dimension
     || saved.start !== current.start || saved.end !== current.end || saved.channel !== current.channel
-    || saved.compare_previous !== current.compare_previous)
+    || saved.scope !== current.scope || saved.compare_previous !== current.compare_previous)
 })
 const generating = ref(false)
 const uploading = ref(false)
@@ -59,29 +66,33 @@ const error = ref('')
 const blocked = ref(false)
 let catalogRequest = 0
 
-async function refreshCatalog(id: number | null) {
+async function refreshCatalog(id: number | null, datasetChanged: boolean) {
   const seq = ++catalogRequest
-  metricList.value = []
+  if (datasetChanged) {
+    metricList.value = []
+    contexts.value = []
+  }
   dimensionList.value = []
-  contexts.value = []
   if (!id) return
   try {
     const [metrics, dimensions, saved] = await Promise.all([
       api<Page<CatalogEntry>>('/datasets/' + id + '/metrics'),
-      api<Page<CatalogEntry>>('/datasets/' + id + '/dimensions'),
+      api<Page<CatalogEntry>>('/datasets/' + id + '/dimensions' + params({
+        scope: hasGrant('dataset.query') ? queryScope.value : undefined,
+      })),
       hasGrant('dataset.query') ? api<Page<AnalysisContext>>('/contexts' + params({ dataset_id: id, archived: 'false', limit: 100 })) : null,
     ])
     if (catalogRequest !== seq) return
     metricList.value = metrics.items
     dimensionList.value = dimensions.items
     contexts.value = saved?.items ?? []
-    fields.metric = metrics.items.find(item => item.name === result.value?.metric_name)?.code
+    fields.metric = (datasetChanged ? metrics.items.find(item => item.name === result.value?.metric_name)?.code : undefined)
       ?? metrics.items.find(item => item.code === fields.metric)?.code ?? metrics.items[0]?.code ?? ''
-    fields.dimension = dimensions.items.find(item => item.name === result.value?.dimension_name)?.code
+    fields.dimension = (datasetChanged ? dimensions.items.find(item => item.name === result.value?.dimension_name)?.code : undefined)
       ?? dimensions.items.find(item => item.code === fields.dimension)?.code ?? dimensions.items[0]?.code ?? ''
   } catch (err) { if (catalogRequest === seq) error.value = errorText(err) }
 }
-watch(() => form.dataset_id, refreshCatalog)
+watch([() => form.dataset_id, queryScope], ([id], [previousId]) => refreshCatalog(id, id !== previousId))
 
 function hydrateResult(snapshot: QueryResult, id: number | null) {
   result.value = snapshot
@@ -90,6 +101,7 @@ function hydrateResult(snapshot: QueryResult, id: number | null) {
   fields.end = snapshot.end
   fields.dimension = snapshot.dimension_code ?? fields.dimension
   fields.channel = snapshot.channel ?? null
+  queryScope.value = availableScope(snapshot.scope)
   comparePrevious.value = Boolean(snapshot.comparison)
 }
 
@@ -153,18 +165,17 @@ function applyPlan({ metric, dimension, start, end, channel, compare_previous }:
 }
 function restoreConditions() {
   if (!snapshotFilters.value) return
-  const { compare_previous, ...saved } = snapshotFilters.value
+  const { compare_previous, scope, ...saved } = snapshotFilters.value
   Object.assign(fields, saved)
+  queryScope.value = scope
   comparePrevious.value = compare_previous
 }
 async function runQuery() {
   querying.value = true
   error.value = ''
   try {
-    const grant = user.value?.grants['dataset.query']
-    const scope: Scope = grant === 'own' ? 'own' : 'department'
     const response = await api<QueryResult & { id: number }>('/queries', {
-      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...currentFilters.value, scope, context_id: contextId.value }),
+      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...currentFilters.value, context_id: contextId.value }),
     })
     if (reportId.value && result.value && queryId.value) {
       ElMessage.info('本次查询将替换工作稿关联的数据。')
@@ -246,6 +257,13 @@ async function save() {
           <el-option v-for="item in datasets" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
         <template v-if="form.dataset_id && hasGrant('dataset.query')">
+          <template v-if="canQueryDepartment">
+            <label>查询范围</label>
+            <el-select v-model="queryScope" aria-label="查询范围" :disabled="querying || planning || generating" @change="fields.channel = null">
+              <el-option value="own" label="本人" />
+              <el-option value="department" label="部门" />
+            </el-select>
+          </template>
           <template v-if="contexts.length">
             <label>分析上下文</label>
             <el-select :model-value="contextId ?? undefined" aria-label="分析上下文" clearable placeholder="选填"
@@ -255,8 +273,8 @@ async function save() {
             <p v-if="selectedContext?.pack_title" class="muted">使用知识包 · {{ selectedContext.pack_title }}</p>
           </template>
           <QuestionPlanner v-if="metricList.length" :key="`${form.dataset_id}-${contextId}`"
-                           :dataset-id="form.dataset_id" :context-id="contextId"
-                           :disabled="querying || generating" @apply="applyPlan" @planning="planning = $event" />
+                           :dataset-id="form.dataset_id" :context-id="contextId" :scope="queryScope"
+                           :disabled="querying || generating || !dimensionList.length" @apply="applyPlan" @planning="planning = $event" />
           <div class="field-grid"><div><label>指标</label><el-select v-model="fields.metric" aria-label="指标" :disabled="planning || querying"><el-option v-for="item in metricList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div>
             <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度" :disabled="planning || querying"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
           <template v-if="channels.length">
@@ -269,7 +287,7 @@ async function save() {
           <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" :disabled="planning || querying" /></div>
             <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" :disabled="planning || querying" /></div></div>
           <el-checkbox v-if="fields.dimension !== 'day'" v-model="comparePrevious" :disabled="querying || planning">对照上一期</el-checkbox>
-          <el-button :loading="querying" :disabled="planning || generating || !fields.start || !fields.end || !metricList.length" @click="runQuery"><Play :size="15" /> 运行指标查询</el-button>
+          <el-button :loading="querying" :disabled="planning || generating || !fields.start || !fields.end || !metricList.length || !dimensionList.length" @click="runQuery"><Play :size="15" /> 运行指标查询</el-button>
         </template>
       </template>
       <template v-if="result">

@@ -47,6 +47,7 @@ class QueryPlanInput(Input):
     dataset_id: int = Field(gt=0)
     context_id: int | None = Field(default=None, gt=0)
     question: str = Field(min_length=3, max_length=200)
+    scope: Literal["own", "department"] | None = None
 
 class DraftInput(Input):
     query_id: int = Field(gt=0)

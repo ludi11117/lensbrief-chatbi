@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import json
 from time import perf_counter_ns
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import func, insert, or_, select
@@ -41,16 +42,21 @@ def list_metrics(dataset_id: int, session: Db, actor: Identity, limit: Limit = 2
     return list_catalog(session, actor, metrics, dataset_id, limit, offset)
 
 @router.get("/datasets/{dataset_id}/dimensions")
-def list_dimensions(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
+def list_dimensions(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0,
+                    scope: Literal["own", "department"] | None = None):
     catalog = list_catalog(session, actor, dimensions, dataset_id, limit, offset)
-    if actor.grants.get("dataset.query"):
+    if scope is not None or actor.grants.get("dataset.query"):
+        selected_scope = report_scope(actor, dataset_id, scope)
         for dimension in catalog["items"]:
             if dimension["code"] == "channel":
-                dimension["values"] = channel_values(session, dataset_id, actor, report_scope(actor, dataset_id))
+                dimension["values"] = channel_values(session, dataset_id, actor, selected_scope)
     return catalog
 
-def report_scope(actor, dataset_id):
-    return "own" if actor.scope("dataset.query", "dataset", dataset_id) == "own" else "department"
+def report_scope(actor, dataset_id, requested=None):
+    maximum = actor.scope("dataset.query", "dataset", dataset_id)
+    if requested == "department" and maximum == "own":
+        raise Denied(actor.id, "dataset.query", "dataset", dataset_id)
+    return requested or ("own" if maximum == "own" else "department")
 
 def channel_values(session, dataset_id, actor, scope):
     return list(session.scalars(select(sales.c.channel).where(
@@ -59,7 +65,7 @@ def channel_values(session, dataset_id, actor, scope):
 
 @router.post("/queries/plan", response_model=QueryPlan)
 def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Identity):
-    scope = report_scope(actor, payload.dataset_id)
+    scope = report_scope(actor, payload.dataset_id, payload.scope)
     take(session, datasets, payload.dataset_id, "数据集")
     previous = None
     if payload.context_id is not None:

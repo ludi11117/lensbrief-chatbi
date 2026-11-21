@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { MessageSquareText } from 'lucide-vue-next'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { api, errorText } from '../api'
-import { scopeText, type QueryPlan } from '../types'
+import { scopeText, type QueryPlan, type ReportQueryScope } from '../types'
 
-const props = defineProps<{ datasetId: number; contextId: number | null; disabled?: boolean }>()
+const props = defineProps<{ datasetId: number; contextId: number | null; scope: ReportQueryScope; disabled?: boolean }>()
 const emit = defineEmits<{ apply: [plan: QueryPlan]; planning: [active: boolean] }>()
 const question = ref('')
 const error = ref('')
@@ -16,6 +16,7 @@ function clearFeedback() {
   error.value = ''
   resolved.value = null
 }
+watch(() => props.scope, clearFeedback)
 onBeforeUnmount(() => {
   requestId++
   if (busy.value) emit('planning', false)
@@ -28,7 +29,7 @@ async function resolve() {
   clearFeedback()
   try {
     const plan = await api<QueryPlan>('/queries/plan', { method: 'POST', body: JSON.stringify({
-      dataset_id: props.datasetId, context_id: props.contextId, question: question.value,
+      dataset_id: props.datasetId, context_id: props.contextId, scope: props.scope, question: question.value,
     }) })
     if (requestId === id) {
       emit('apply', plan)
