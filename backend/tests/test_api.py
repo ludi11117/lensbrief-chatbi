@@ -229,6 +229,29 @@ def test_csv_attachment_is_authorized_against_version(client, auth, body):
     res = client.get(path + "/content", headers=headers, params={**params, "download": True})
     assert res.headers["content-disposition"].startswith("attachment;")
 
+def test_read_only_report_uses_the_released_attachment_set(app, client, auth, body):
+    owner = auth()
+    asset_ids = []
+    for filename, value in (("released.csv", 1), ("working.csv", 2)):
+        uploaded = client.post("/api/assets", headers=owner, files={"file": (filename, f"x\n{value}\n".encode())})
+        assert uploaded.status_code == 201
+        asset_ids.append(uploaded.json()["id"])
+    released, working = asset_ids
+    report_id = make_report(client, owner, {**body, "asset_ids": [released]})
+    path = f"/reports/{report_id}"
+    do(client, path + "/publish", owner)
+    edited = client.put("/api" + path, headers=owner, json={**body, "asset_ids": [working]})
+    assert edited.status_code == 200
+    with app.state.session_factory() as session:
+        session.execute(update(role_permissions).where(role_permissions.c.role_id == 2,
+                        role_permissions.c.permission_code == "report.edit").values(scope="own"))
+        session.commit()
+    reader = auth("manager")
+    params = {"report_id": report_id}
+    assert client.get(f"/api/assets/{released}/csv", headers=reader, params=params).json()["rows"] == [["1"]]
+    assert client.get(f"/api/assets/{working}/csv", headers=reader, params=params).status_code == 403
+    assert client.get(f"/api/assets/{working}/csv", headers=owner, params=params).json()["rows"] == [["2"]]
+
 @pytest.mark.parametrize("kind", ["png", "pdf"])
 def test_image_and_pdf_content(client, auth, kind):
     payload = BytesIO()

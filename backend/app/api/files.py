@@ -15,7 +15,7 @@ from ..db import utc_now
 from ..models import assets, report_assets, version_assets
 from ..outputs import Asset, CsvPreview, Page
 from .common import Limit, Offset, count, page, take
-from .reports import get_report, get_version
+from .reports import can_edit_working_report, get_report, get_version
 
 router = APIRouter(tags=["文件"])
 MAX_BYTES = 5 * 1024 * 1024
@@ -106,7 +106,7 @@ def authorize(session, actor, id_, report_id, version):
             raise Denied(actor.id, "asset.read", "asset", id_)
         return file
     report = get_report(session, actor, report_id, "report.read")
-    if version is None and report["status"] == "archived":
+    if version is None and not can_edit_working_report(report, actor):
         version = report["current_version"]
     if version is None:
         get_report(session, actor, report_id, "report.edit")

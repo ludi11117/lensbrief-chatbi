@@ -76,6 +76,9 @@ def attachable_scope(report, actor, action):
     return scope == "all" or (scope == "own" and report["owner_id"] == actor.id) or (
         scope == "department" and report["department_id"] == actor.department_id)
 
+def can_edit_working_report(report, actor):
+    return report["status"] != "archived" and attachable_scope(report, actor, "report.edit")
+
 def report_tag(report, snapshot):
     state = [report["id"], report["updated_at"], report["status"], report["current_version"], snapshot]
     return '"' + sha256(json_dump(state).encode()).hexdigest() + '"'
@@ -89,7 +92,7 @@ def require_matching_report(report, snapshot, if_match):
 def present(session, report, actor):
     number = report["current_version"]
     published = json.loads(get_version(session, report["id"], number)["snapshot_json"]) if number else None
-    editable = report["status"] != "archived" and attachable_scope(report, actor, "report.edit")
+    editable = can_edit_working_report(report, actor)
     active = working_snapshot(session, report) if editable or not published else published
     return {**{key: report[key] for key in ("id", "owner_id", "department_id", "status", "current_version",
                                             "created_at", "updated_at")},

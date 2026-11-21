@@ -32,6 +32,12 @@ const errorCode = ref<number>()
 const showing = computed(() => selected.value ?? report.value)
 const discussionVersion = computed(() => selectedNumber.value ??
   (report.value?.has_unpublished_changes ? null : report.value?.current_version))
+const previewLabel = computed(() => {
+  if (selectedNumber.value) return '历史版本 v' + selectedNumber.value
+  if (report.value?.status === 'archived') return '归档版本 v' + report.value.current_version
+  if (report.value?.current_version && !report.value.allowed.edit) return '发布版 v' + report.value.current_version
+  return '当前工作稿'
+})
 const printable = ref<HTMLElement>()
 const expandedForPrint: HTMLDetailsElement[] = []
 const labels: Record<string, string> = { title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID' }
@@ -156,7 +162,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       <div class="detail-grid">
         <article ref="printable" class="panel printable-report">
           <div class="section-head print-hide"><h2>报告预览</h2>
-            <div class="inline"><span class="version-label">{{ selectedNumber ? '历史版本 v' + selectedNumber : report.status === 'archived' ? '归档版本' : '当前工作稿' }}</span>
+            <div class="inline"><span class="version-label">{{ previewLabel }}</span>
               <el-button size="small" @click="printReport"><Printer :size="15" /> 打印报告</el-button></div>
           </div>
           <div class="print-heading"><span>LensBrief · {{ discussionVersion ? 'v' + discussionVersion : '工作稿' }}</span><h1>{{ showing.title }}</h1></div>
@@ -169,7 +175,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
             <h3>附件</h3>
             <RouterLink v-for="file in showing.assets" :key="file.id" class="attachment"
                         :to="{ name: 'asset', params: { asset: file.id }, query: {
-                          report: id, version: selectedNumber ?? undefined, filename: file.filename,
+                          report: id, version: discussionVersion ?? undefined, filename: file.filename,
                         } }">
               <FileText :size="17" /><span>{{ file.filename }}</span><strong>预览</strong>
             </RouterLink>
