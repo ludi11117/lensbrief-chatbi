@@ -117,7 +117,7 @@ async function compare() {
 async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', number?: number) {
   const prompts = {
     publish: '发布会将当前工作稿保存为一个新版本。',
-    archive: '归档后仍可查看历史版本，编辑及发布将关闭。',
+    archive: '归档后显示最后发布的版本，仍可查看历史版本。归档后会关闭编辑和发布。',
     remove: '删除后此报告将从报告中心移除。',
     rollback: '将 v' + number + ' 的内容恢复为一个新的发布版本，保留现有版本。',
   }

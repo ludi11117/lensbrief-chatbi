@@ -6,10 +6,10 @@ import httpx
 import pytest
 from PIL import Image
 from pypdf import PdfWriter
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from backend.app.api import reports as report_api
-from backend.app.models import audit_logs, reports, version_assets, versions
+from backend.app.models import audit_logs, reports, role_permissions, version_assets, versions
 
 def make_report(client, headers, body):
     res = client.post("/api/reports", headers=headers, json=body)
@@ -125,6 +125,32 @@ def test_invalid_state_transitions(client, auth, body):
     assert do(client, path + "/archive", headers, 200)["status"] == "archived"
     do(client, path + "/publish", headers, 409)
     assert client.put("/api" + path, headers=headers, json=body).status_code == 409
+
+def test_list_and_keyword_search_follow_the_visible_report_version(app, client, auth, body):
+    owner = auth()
+    report_id = make_report(client, owner, {**body, "title": "已发布标题", "description": "已发布摘要"})
+    path = f"/reports/{report_id}"
+    do(client, path + "/publish", owner)
+    edited = client.put("/api" + path, headers=owner, json={**body, "title": "工作稿标题", "description": "工作稿摘要"})
+    assert edited.status_code == 200
+    with app.state.session_factory() as session:
+        session.execute(update(role_permissions).where(role_permissions.c.role_id == 2,
+                        role_permissions.c.permission_code == "report.edit").values(scope="own"))
+        session.commit()
+
+    def check_version(headers, visible, hidden):
+        listing = client.get("/api/reports", headers=headers, params={"q": visible + "摘要"}).json()
+        assert listing["total"] == 1
+        row = listing["items"][0]
+        detail = client.get("/api" + path, headers=headers).json()
+        assert row["id"] == report_id and row["title"] == detail["title"] == visible + "标题"
+        assert row["description"] == detail["description"] == visible + "摘要"
+        assert client.get("/api/reports", headers=headers, params={"q": hidden + "标题"}).json()["total"] == 0
+
+    check_version(owner, "工作稿", "已发布")
+    check_version(auth("manager"), "已发布", "工作稿")
+    do(client, path + "/archive", owner, 200)
+    check_version(owner, "已发布", "工作稿")
 
 @pytest.mark.parametrize("name,data", [
     ("shell.txt", b"a,b\n1,2"), ("broken.png", b"not an image"),

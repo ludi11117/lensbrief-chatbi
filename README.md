@@ -102,7 +102,7 @@ erDiagram
 
 ### 版本、权限和文件
 
-- 首次发布将草稿转为已发布。编辑已发布报告只更新工作稿，再次发布才产生新版本。归档后保留可读历史，删除为软删除。
+- 首次发布将草稿转为已发布。编辑已发布报告只更新工作稿，再次发布才产生新版本。归档后，列表、搜索和详情使用最后发布的版本，并保留历史。删除为软删除。
 - 报告列表把关键词、状态与分页保存在 URL。刷新或打开分享链接可恢复筛选，查询仍按打开者的权限执行。 [URL 搜索参数设计](https://github.com/TanStack/router/blob/main/docs/router/guide/search-params.md)
 - 网页保存和发布时用 `If-Match` 核对工作稿。若其他操作者已保存，服务器返回 412，编辑页面保留本地输入。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
@@ -174,7 +174,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入测试数据。
 
-本地实测通过 pytest 66 项、Vitest 9 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 67 项、Vitest 9 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 
@@ -202,15 +202,15 @@ Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright
 python -m backend.scripts.benchmark
 ```
 
-Windows 可加 `--temp-dir D:\CodexWork\temp`。脚本用正式迁移创建独立数据库，生成 10,000 条报告。每组预热 10 次，采样 100 次，每页 20 条。计时包括列表、总数查询和 SQLAlchemy 行映射，采用最近秩法计算百分位。测试对象是本机单进程 SQLite 热缓存查询。查看 [原始样本](docs/benchmarks/samples.csv) 和 [环境与查询计划](docs/benchmarks/summary.json)。
+Windows 可加 `--temp-dir D:\CodexWork\temp`。脚本用正式迁移创建独立数据库，生成 10,000 条报告，为已发布和已归档的报告建立版本快照。每组预热 10 次，采样 100 次，每页 20 条。计时包括列表、总数查询和 SQLAlchemy 行映射，采用最近秩法计算百分位。测试对象是本机单进程 SQLite 热缓存查询。 [原始样本](docs/benchmarks/samples.csv) · [环境与查询计划](docs/benchmarks/summary.json)
 
 | 查询 | Offset | P50（ms） | P95（ms） |
 | --- | ---: | ---: | ---: |
-| 全部范围首页 | 0 | 0.4439 | 0.5280 |
-| 全部范围深分页 | 9000 | 1.4691 | 1.7336 |
-| 已发布状态首页 | 0 | 0.3996 | 0.4850 |
-| 已发布状态深分页 | 3000 | 0.8869 | 1.4616 |
-| 标题／摘要关键字首页 | 0 | 5.5625 | 6.1546 |
+| 全部范围首页 | 0 | 0.5352 | 0.5833 |
+| 全部范围深分页 | 9000 | 4.1157 | 4.6531 |
+| 已发布状态首页 | 0 | 0.4478 | 0.5457 |
+| 已发布状态深分页 | 3000 | 1.3430 | 1.8803 |
+| 标题／摘要关键字首页 | 0 | 11.6598 | 12.5237 |
 
 ## 已知限制
 

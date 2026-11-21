@@ -4,7 +4,7 @@ from hashlib import sha256
 from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import and_, delete, func, insert, or_, select, update
 
 from ..auth import Db, Denied, Identity, audit, scope_filter
 from ..db import as_dict, begin_write, json_dump, utc_now
@@ -103,15 +103,28 @@ def listing_statements(actor, status=None, q=""):
     conditions = [reports.c.deleted_at.is_(None), scope_filter(reports, scope, actor)]
     if status:
         conditions.append(reports.c.status == status)
+
+    edit_scope = actor.grants.get("report.edit")
+    published_view = reports.c.status == "archived"
+    if edit_scope and edit_scope != "all":
+        published_view = or_(published_view, ~scope_filter(reports, edit_scope, actor))
+    source = reports.outerjoin(versions, and_(
+        versions.c.report_id == reports.c.id,
+        versions.c.number == reports.c.current_version,
+        published_view if edit_scope else True,
+    ))
+    title = func.coalesce(func.json_extract(versions.c.snapshot_json, "$.title"), reports.c.title)
+    description = func.coalesce(func.json_extract(versions.c.snapshot_json, "$.description"), reports.c.description)
+    total_source = reports
     if q.strip():
         keyword = q.strip()
-        conditions.append(reports.c.title.icontains(keyword, autoescape=True)
-                          | reports.c.description.icontains(keyword, autoescape=True))
-    fields = (reports.c.id, reports.c.title, reports.c.description, reports.c.status, reports.c.owner_id,
+        conditions.append(title.icontains(keyword, autoescape=True) | description.icontains(keyword, autoescape=True))
+        total_source = source
+    fields = (reports.c.id, title.label("title"), description.label("description"), reports.c.status, reports.c.owner_id,
               reports.c.current_version, reports.c.updated_at, users.c.name.label("owner_name"))
-    statement = (select(*fields).join(users, users.c.id == reports.c.owner_id).where(*conditions)
+    statement = (select(*fields).select_from(source.join(users, users.c.id == reports.c.owner_id)).where(*conditions)
                  .order_by(reports.c.updated_at.desc(), reports.c.id.desc()))
-    return statement, count(reports, *conditions)
+    return statement, count(total_source, *conditions)
 
 @router.get("", response_model=Page[ReportRow])
 def list_reports(session: Db, actor: Identity, limit: Limit = 10, offset: Offset = 0,

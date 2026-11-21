@@ -12,14 +12,14 @@ from time import perf_counter_ns
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, update
 from sqlalchemy.orm import Session
 
 from backend.app.api.common import page
 from backend.app.api.reports import listing_statements
 from backend.app.auth import Actor
-from backend.app.db import ROOT, sqlite_engine
-from backend.app.models import reports
+from backend.app.db import ROOT, json_dump, sqlite_engine
+from backend.app.models import reports, versions
 from backend.scripts.seed import seed
 
 SAMPLES = 100
@@ -33,20 +33,28 @@ CASES = [
     ("status_deep", "published", "", 3000),
     ("keyword_first", None, "渠道月报", 0),
 ]
-ACTOR = Actor(4, "admin", "管理员", 1, ["admin"], {"report.read": "all"})
+ACTOR = Actor(4, "admin", "管理员", 1, ["admin"], {"report.read": "all", "report.edit": "all"})
 
 def fill(session):
     seed(session)
     session.execute(delete(reports))
     base = datetime(2026, 10, 1, tzinfo=timezone.utc)
-    session.execute(insert(reports), [
-        {"title": f"{'渠道月报' if i % 5 == 0 else '销售复盘'} {i:05}", "description": "分页基准合成记录",
+    rows = [
+        {"id": i + 1, "title": f"{'渠道月报' if i % 5 == 0 else '销售复盘'} {i:05}", "description": "分页基准合成记录",
          "content": "基准占位正文", "owner_id": (i % 2) + 1, "department_id": 1, "dataset_id": 1,
          "status": ("draft", "published", "archived")[i % 3],
          "created_at": base.isoformat(timespec="microseconds"),
          "updated_at": (base + timedelta(seconds=i)).isoformat(timespec="microseconds")}
         for i in range(ROWS)
+    ]
+    session.execute(insert(reports), rows)
+    session.execute(insert(versions), [
+        {"report_id": row["id"], "number": 1, "created_by": row["owner_id"], "created_at": row["updated_at"],
+         "snapshot_json": json_dump({**{key: row[key] for key in ("title", "description", "content", "dataset_id")},
+                                     "query_id": None, "query": None, "asset_ids": []})}
+        for row in rows if row["status"] != "draft"
     ])
+    session.execute(update(reports).where(reports.c.status != "draft").values(current_version=1))
     session.commit()
 
 def explain(session, statement):
