@@ -16,6 +16,7 @@ export interface QueryResult {
   scope: Scope; start: string; end: string; rows: { label: string; value: number | null }[]
   knowledge?: KnowledgeSnapshot | null
   dimension_code?: string | null
+  channel?: string | null
   comparison?: { start: string; end: string; rows: { label: string; value: number | null }[] } | null
 }
 export interface QueryPlan {

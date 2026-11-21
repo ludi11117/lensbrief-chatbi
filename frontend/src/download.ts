@@ -18,6 +18,11 @@ export function resultCsv(result: QueryResult) {
   const rows = previous
     ? comparisonRows(result).map(row => [row.label, row.current, row.previous])
     : result.rows.map(row => [row.label, row.value])
+  const channel = result.channel
+  if (channel) {
+    header.push('渠道筛选')
+    rows.forEach(row => row.push(channel))
+  }
   return '\uFEFF' + [header, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }
 

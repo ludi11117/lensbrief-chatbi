@@ -73,6 +73,7 @@ class QuerySnapshot(BaseModel):
     unit: str
     dimension_name: str
     dimension_code: str | None = None
+    channel: str | None = None
     scope: Scope
     start: str
     end: str

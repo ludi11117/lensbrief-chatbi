@@ -9,7 +9,7 @@ import QueryPreview from '../components/QueryResult.vue'
 import QuestionPlanner from '../components/QuestionPlanner.vue'
 import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
 
-interface CatalogEntry { code: string; name: string; description: string }
+interface CatalogEntry { code: string; name: string; description: string; values?: string[] }
 const route = useRoute()
 const router = useRouter()
 const reportId = computed(() => route.params.id ? Number(route.params.id) : null)
@@ -25,7 +25,8 @@ const contextId = ref<number | null>(null)
 const selectedContext = computed(() => contexts.value.find(item => item.id === contextId.value))
 const metricList = ref<CatalogEntry[]>([])
 const dimensionList = ref<CatalogEntry[]>([])
-const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-01', end: '2026-10-31' })
+const channels = computed(() => dimensionList.value.find(item => item.code === 'channel')?.values ?? [])
+const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-01', end: '2026-10-31', channel: null as string | null })
 const waiting = ref(false)
 const saving = ref(false)
 const querying = ref(false)
@@ -69,6 +70,7 @@ function hydrateResult(snapshot: QueryResult, id: number | null) {
   fields.start = snapshot.start
   fields.end = snapshot.end
   fields.dimension = snapshot.dimension_code ?? fields.dimension
+  fields.channel = snapshot.channel ?? null
   comparePrevious.value = Boolean(snapshot.comparison)
 }
 
@@ -116,6 +118,7 @@ onMounted(async () => {
 
 function changeDataset(value: number | null) {
   form.dataset_id = value ?? null
+  fields.channel = null
   changeContext(null)
 }
 function changeContext(value: number | null) {
@@ -225,6 +228,13 @@ async function save() {
                            :disabled="querying || generating" @apply="applyPlan" @planning="planning = $event" />
           <div class="field-grid"><div><label>指标</label><el-select v-model="fields.metric" aria-label="指标" :disabled="planning || querying"><el-option v-for="item in metricList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div>
             <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度" :disabled="planning || querying"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
+          <template v-if="channels.length">
+            <label>渠道筛选</label>
+            <el-select :model-value="fields.channel ?? undefined" aria-label="渠道筛选" clearable placeholder="全部渠道"
+                       :disabled="planning || querying" @update:model-value="(value: string | undefined) => fields.channel = value || null">
+              <el-option v-for="channel in channels" :key="channel" :value="channel" :label="channel" />
+            </el-select>
+          </template>
           <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" :disabled="planning || querying" /></div>
             <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" :disabled="planning || querying" /></div></div>
           <el-checkbox v-if="fields.dimension !== 'day'" v-model="comparePrevious" :disabled="querying || planning">对照上一期</el-checkbox>

@@ -19,7 +19,8 @@ function exportRows() {
 <template>
   <section class="chart-panel">
     <div class="section-head">
-      <div><h3>{{ result.metric_name }} · 按{{ result.dimension_name }}</h3><p>{{ result.start }} 至 {{ result.end }} · {{ scopeText[result.scope] }}范围</p></div>
+      <div><h3>{{ result.metric_name }} · 按{{ result.dimension_name }}</h3><p>{{ result.start }} 至 {{ result.end }} · {{ scopeText[result.scope] }}范围</p>
+        <p v-if="result.channel">渠道筛选 · {{ result.channel }}</p></div>
       <el-button v-if="result.rows.length || comparisons.length" size="small" @click="exportRows"><Download :size="15" /> 导出 CSV</el-button>
     </div>
     <template v-if="result.comparison">

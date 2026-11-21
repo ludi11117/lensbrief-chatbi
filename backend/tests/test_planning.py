@@ -21,7 +21,7 @@ def test_plan_parses_explicit_window_without_executing_query(client, auth):
     result = response.json()
     assert result == {"dataset_id": 1, "context_id": None, "start": "2026-10-02", "end": "2026-10-17",
                       "metric": "refund_rate", "dimension": "product", "scope": "own", "notes": [], "source": "rules",
-                      "compare_previous": False}
+                      "compare_previous": False, "channel": None}
     assert client.get("/api/queries", headers=headers).json()["total"] == 0
     fields = {name: value for name, value in result.items() if name not in ("notes", "source")}
     executed = client.post("/api/queries", headers=headers, json=fields)

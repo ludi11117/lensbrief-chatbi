@@ -42,12 +42,24 @@ def list_metrics(dataset_id: int, session: Db, actor: Identity, limit: Limit = 2
 
 @router.get("/datasets/{dataset_id}/dimensions")
 def list_dimensions(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
-    return list_catalog(session, actor, dimensions, dataset_id, limit, offset)
+    catalog = list_catalog(session, actor, dimensions, dataset_id, limit, offset)
+    if actor.grants.get("dataset.query"):
+        for dimension in catalog["items"]:
+            if dimension["code"] == "channel":
+                dimension["values"] = channel_values(session, dataset_id, actor, report_scope(actor, dataset_id))
+    return catalog
+
+def report_scope(actor, dataset_id):
+    return "own" if actor.scope("dataset.query", "dataset", dataset_id) == "own" else "department"
+
+def channel_values(session, dataset_id, actor, scope):
+    return list(session.scalars(select(sales.c.channel).where(
+        sales.c.dataset_id == dataset_id, scope_filter(sales, scope, actor)
+    ).distinct().order_by(sales.c.channel)))
 
 @router.post("/queries/plan", response_model=QueryPlan)
 def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Identity):
-    maximum = actor.scope("dataset.query", "dataset", payload.dataset_id)
-    scope = "own" if maximum == "own" else "department"
+    scope = report_scope(actor, payload.dataset_id)
     take(session, datasets, payload.dataset_id, "数据集")
     previous = None
     if payload.context_id is not None:
@@ -127,6 +139,9 @@ def query(payload: QueryInput, session: Db, actor: Identity):
     if not metric or not dimension or payload.metric not in METRIC_COLUMNS or payload.dimension not in DIMENSION_COLUMNS:
         save_query(session, actor, payload, scope, "invalid", started)
         raise HTTPException(422, "该数据集不支持所选指标或维度。")
+    if payload.channel and payload.channel not in channel_values(session, payload.dataset_id, actor, scope):
+        save_query(session, actor, payload, scope, "invalid", started)
+        raise HTTPException(422, "当前查询范围没有所选渠道。")
     field = DIMENSION_COLUMNS[payload.dimension]
     agg = METRIC_COLUMNS[payload.metric].label("value")
     start = payload.start
@@ -135,6 +150,8 @@ def query(payload: QueryInput, session: Db, actor: Identity):
     stmt = select(field.label("label"), agg).select_from(sales.join(departments)).where(
         sales.c.dataset_id == payload.dataset_id, sales.c.day.between(start.isoformat(), payload.end.isoformat()),
         scope_filter(sales, scope, actor)).group_by(field)
+    if payload.channel:
+        stmt = stmt.where(sales.c.channel == payload.channel)
     if payload.compare_previous:
         current_period = (sales.c.day >= payload.start.isoformat()).label("is_current")
         stmt = stmt.add_columns(current_period).group_by(current_period)
@@ -149,7 +166,7 @@ def query(payload: QueryInput, session: Db, actor: Identity):
         save_query(session, actor, payload, scope, "error", started)
         raise
     result = {"metric_name": metric.name, "metric_note": metric.description, "unit": metric.unit,
-              "dimension_name": dimension.name, "dimension_code": dimension.code,
+              "dimension_name": dimension.name, "dimension_code": dimension.code, "channel": payload.channel,
               "scope": scope, "start": payload.start.isoformat(),
               "end": payload.end.isoformat(), "rows": rows}
     if payload.compare_previous:
@@ -220,6 +237,8 @@ def mock_draft(goal, result):
     else:
         summary = "所选范围内没有可分析的数据。"
     content = f"观察期\n{window}\n\n主要发现\n{summary}\n\n统计口径\n{result['metric_note']}"
+    if channel := result.get("channel"):
+        content += f"\n数据仅包含渠道筛选「{channel}」。"
     if comparison := result.get("comparison"):
         content += f"\n\n对照期\n{comparison['start']} 至 {comparison['end']}，返回 {len(comparison['rows'])} 组。"
     if knowledge := result.get("knowledge"):

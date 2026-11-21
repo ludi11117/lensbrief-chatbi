@@ -30,6 +30,7 @@ class QueryInput(Input):
     scope: Literal["own", "department", "all"] | None = None
     context_id: int | None = Field(default=None, gt=0)
     compare_previous: bool = False
+    channel: str | None = Field(default=None, min_length=1, max_length=30)
 
     @model_validator(mode="after")
     def valid_range(self):
