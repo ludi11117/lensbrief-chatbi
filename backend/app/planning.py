@@ -28,9 +28,11 @@ UNSUPPORTED = re.compile(
     r"同比|环比|增长率|增幅|利润|净收入|成本|退款数|退款额|客单价|用户数|占比|排行前|top\s*\d|"
     r"昨天|前天|今天|本月|上月|上个月|下月|本周|上周|下周|今年|去年|季度|"
     r"华[东南北中]|海外|全国|北京|上海|深圳|trail x|pocket air|orbit mini|"
-    r"全部范围|全量|所有区域|排除|筛选|过滤|不含|不看|别看|大于|小于|高于|低于|多少用户"
+    r"全部范围|全量|所有区域|排除|筛选|过滤|不(?:包)?含|不看|别看|大于|小于|高于|低于|多少用户"
 )
 ALL_CHANNELS = re.compile(r"(?:全部|所有)渠道")
+CHANNEL_SELECTOR = re.compile(r"(?:只看|仅看)\s*")
+CHANNEL_CONNECTOR = re.compile(r"^\s*(?:[和与或、/+]|以及)")
 PERIOD_CHANGE = re.compile(r"取消(?:对[照比]上一?期|上一?期对照|对照)|(?:不|不用|无需)?对[照比]上一?期")
 
 class PlanError(ValueError):
@@ -137,11 +139,16 @@ def resolve_question(question, available_window, previous, available_channels):
     matches = [(channel, name) for channel in available_channels
                if (name := normalize("NFKC", channel).lower()) in text]
     clear_channel = ALL_CHANNELS.search(text) is not None
-    if len(matches) > 1 or (matches and clear_channel):
+    selectors = list(CHANNEL_SELECTOR.finditer(text))
+    if len(matches) > 1 or len(selectors) > 1 or (matches and clear_channel):
         raise PlanError("一次查询可选择一个渠道，或使用全部渠道。")
     channel, channel_name = matches[0] if matches else (None, "")
-    if re.search(r"只看|仅看", text) and channel is None:
-        raise PlanError("请使用当前查询范围内的渠道名，或在表单中选择渠道。")
+    if selectors:
+        operand = text[selectors[0].end():]
+        if not ((channel_name and operand.startswith(channel_name)) or ALL_CHANNELS.match(operand)):
+            raise PlanError("请在“只看”后写一个当前范围内的渠道名，或选择全部渠道。")
+    if channel_name and CHANNEL_CONNECTOR.match(text.split(channel_name, 1)[1]):
+        raise PlanError("一次查询可选择一个渠道，或使用全部渠道。")
     axes_text = ALL_CHANNELS.sub("", text)
     if channel_name:
         axes_text = axes_text.replace(channel_name, "")

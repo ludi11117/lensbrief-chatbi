@@ -170,4 +170,10 @@ def test_channel_from_authorized_catalog_is_preserved_or_cleared_in_followups(cl
     assert ran.status_code == 201
     assert plan(client, headers, "改看退款率", context_id).json()["channel"] == "官网"
     assert plan(client, headers, "改成全部渠道", context_id).json()["channel"] is None
+    assert plan(client, headers, "改成只看全部渠道", context_id).json()["channel"] is None
     assert plan(client, headers, "按产品只看抖音成交额", context_id).status_code == 422
+    for question in (
+        "按产品只看官网和抖音成交额", "按产品只看抖音和官网成交额",
+        "按产品看官网或抖音成交额", "按产品看官网成交额，不包含线下零售",
+    ):
+        assert plan(client, headers, question, context_id).status_code == 422
