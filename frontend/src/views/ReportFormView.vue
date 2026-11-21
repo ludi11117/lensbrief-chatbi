@@ -5,6 +5,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
+import AssetPicker from '../components/AssetPicker.vue'
 import QueryPreview from '../components/QueryResult.vue'
 import QuestionPlanner from '../components/QuestionPlanner.vue'
 import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
@@ -35,6 +36,7 @@ const comparePrevious = ref(false)
 const hasPendingPlan = ref(false)
 const generating = ref(false)
 const uploading = ref(false)
+const assetsOpen = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const error = ref('')
 const blocked = ref(false)
@@ -176,6 +178,10 @@ async function upload(event: Event) {
   try { media.value = [...media.value, await api<Asset>('/assets', { method: 'POST', body })] }
   catch (err) { error.value = errorText(err) } finally { uploading.value = false; input.value = '' }
 }
+function attach(file: Asset) {
+  media.value = [...media.value, file]
+  assetsOpen.value = false
+}
 async function save() {
   if (!form.title.trim()) { error.value = '请输入报告标题。'; return }
   saving.value = true
@@ -202,7 +208,13 @@ async function save() {
       <label for="title">报告标题</label><el-input id="title" v-model="form.title" maxlength="120" show-word-limit placeholder="例如：十月渠道表现复盘" />
       <label for="description">摘要</label><el-input id="description" v-model="form.description" maxlength="500" placeholder="概述这份报告关注的问题" />
       <label for="body">正文</label><el-input id="body" v-model="form.content" type="textarea" :rows="12" maxlength="16000" show-word-limit placeholder="写入主要发现和统计口径" />
-      <div class="section-head attachments-heading"><h3>附件</h3><el-button v-if="hasGrant('asset.upload')" :disabled="media.length >= 12" :loading="uploading" @click="fileInput?.click()"><FileUp :size="16" /> 上传文件</el-button></div>
+      <div class="section-head attachments-heading">
+        <h3>附件</h3>
+        <div v-if="hasGrant('asset.upload')">
+          <el-button :disabled="media.length >= 12 || uploading" @click="assetsOpen = true">选择已有文件</el-button>
+          <el-button :disabled="media.length >= 12" :loading="uploading" @click="fileInput?.click()"><FileUp :size="16" /> 上传文件</el-button>
+        </div>
+      </div>
       <input ref="fileInput" type="file" class="hidden-input" aria-label="上传附件" accept=".png,.jpg,.jpeg,.pdf,.csv" @change="upload" />
       <p v-if="!media.length" class="muted">支持 PNG、JPEG、PDF 和 CSV，单文件上限 5 MiB。</p>
       <div v-for="file in media" :key="file.id" class="attachment"><span>{{ file.filename }}</span><button type="button" class="icon-button" :aria-label="'移除 ' + file.filename" @click="media = media.filter(item => item.id !== file.id)"><X :size="16" /></button></div>
@@ -252,4 +264,5 @@ async function save() {
       </template>
     </section>
   </div>
+  <AssetPicker v-if="assetsOpen" :attached="media" @select="attach" @close="assetsOpen = false" />
 </template>

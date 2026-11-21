@@ -41,6 +41,7 @@
 | `POST /contexts` | 新建个人上下文，HTTP 201 | dataset.query |
 | `GET /contexts/{id}` | 查看个人上下文 | 所有者、dataset.query |
 | `PUT /contexts/{id}` | 更新目标与知识包，归档或恢复 | 所有者、dataset.query |
+| `GET /assets` | 分页列出本人上传的文件，最近上传优先，可用 `limit` 和 `offset` | asset.upload |
 | `POST /assets` | 上传，字段名 `file`，单文件 5 MiB，HTTP 201 | asset.upload |
 | `GET /assets/{id}/content` | 读取文件，可传 `report_id`、`version`、`download=true` | 所有者或关联报告权限 |
 | `GET /assets/{id}/csv` | CSV 表头、前 100 行与总行数，可传 `report_id` 与 `version` | 所有者或关联报告权限 |

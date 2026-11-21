@@ -137,6 +137,19 @@ def test_upload_size_limit(client, auth):
     data = b"A" * (5 * 1024 * 1024 + 1)
     assert client.post("/api/assets", headers=auth(), files={"file": ("big.csv", data)}).status_code == 413
 
+def test_assets_page_is_private_and_supports_reuse(client, auth, body):
+    owner = auth()
+    older = client.post("/api/assets", headers=owner, files={"file": ("older.csv", b"a\n1\n")}).json()
+    recent = client.post("/api/assets", headers=owner, files={"file": ("recent.csv", b"a\n2\n")}).json()
+    for offset, expected in enumerate([[recent], [older], []]):
+        result = client.get("/api/assets", headers=owner, params={"limit": 1, "offset": offset})
+        assert result.json() == {"items": expected, "limit": 1, "offset": offset, "total": 2}
+    assert client.get("/api/assets", headers=auth("admin")).json()["total"] == 0
+
+    for title in ("渠道复盘", "经营简报"):
+        report_id = make_report(client, owner, {**body, "title": title, "asset_ids": [recent["id"]]})
+        assert client.get(f"/api/reports/{report_id}", headers=owner).json()["assets"] == [recent]
+
 def test_csv_attachment_is_authorized_against_version(client, auth, body):
     headers = auth()
     file = client.post("/api/assets", headers=headers, files={"file": ("数据.csv", "渠道,订单\n官网,3\n".encode())}).json()

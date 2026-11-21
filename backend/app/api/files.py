@@ -13,8 +13,8 @@ from sqlalchemy import insert, select
 from ..auth import Db, Denied, Identity, audit
 from ..db import utc_now
 from ..models import assets, report_assets, version_assets
-from ..outputs import Asset, CsvPreview
-from .common import take
+from ..outputs import Asset, CsvPreview, Page
+from .common import Limit, Offset, count, page, take
 from .reports import get_report, get_version
 
 router = APIRouter(tags=["文件"])
@@ -65,6 +65,13 @@ def inspect(filename, content):
             IndexError, KeyError, RecursionError, csv.Error):
         raise HTTPException(415, "文件内容无效。支持 PNG、JPEG、未加密的 PDF 和 UTF-8 CSV。") from None
     return mime
+
+@router.get("/assets", response_model=Page[Asset])
+def list_assets(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
+    actor.scope("asset.upload", "asset")
+    owned = assets.c.owner_id == actor.id
+    items = select(assets.c.id, assets.c.filename, assets.c.mime, assets.c.size_bytes).where(owned)
+    return page(session, items.order_by(assets.c.id.desc()), count(assets, owned), limit, offset)
 
 @router.post("/assets", status_code=201, response_model=Asset)
 def upload(request: Request, session: Db, actor: Identity, file: UploadFile = File(...)):
