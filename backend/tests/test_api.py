@@ -57,6 +57,17 @@ def test_pagination_filters_and_soft_delete(client, auth, body):
     assert client.get(f"/api/reports/{report_id}", headers=headers).status_code == 404
     assert client.get("/api/reports", headers=headers).json()["total"] == 1
 
+def test_report_summary_counts_only_visible_current_reports(client, auth):
+    owner = auth()
+    route = "/api/reports/summary"
+    assert client.get(route, headers=owner).json() == {"total": 1, "draft": 1, "published": 0, "archived": 0}
+    assert client.get(route, headers=auth("admin")).json()["total"] == 2
+    assert client.post("/api/reports/1/publish", headers=owner).status_code == 201
+    assert client.post("/api/reports/1/archive", headers=owner).status_code == 200
+    assert client.get(route, headers=owner).json() == {"total": 1, "draft": 0, "published": 0, "archived": 1}
+    assert client.delete("/api/reports/1", headers=owner).status_code == 204
+    assert client.get(route, headers=owner).json()["total"] == 0
+
 def test_publish_failure_rolls_back_status_version_attachments_and_audit(client, auth, body, app, monkeypatch):
     headers = auth()
     upload = client.post("/api/assets", headers=headers, files={"file": ("a.csv", b"a,b\n1,2\n", "text/csv")})

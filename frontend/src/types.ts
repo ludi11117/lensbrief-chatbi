@@ -1,5 +1,6 @@
 export type Scope = 'own' | 'department' | 'all'
 export type Status = 'draft' | 'published' | 'archived'
+export type ReportSummary = Record<Status | 'total', number>
 export interface Actor { id: number; username: string; name: string; department_id: number; roles: string[]; grants: Record<string, Scope> }
 export interface Page<T> { items: T[]; total: number; limit: number; offset: number }
 export interface Dataset { id: number; code: string; name: string; description: string }

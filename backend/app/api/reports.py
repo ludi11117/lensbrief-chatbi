@@ -4,12 +4,12 @@ from hashlib import sha256
 from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 
 from ..auth import Db, Denied, Identity, audit, scope_filter
 from ..db import as_dict, begin_write, json_dump, utc_now
 from ..models import assets, datasets, query_logs, report_assets, report_feedback, reports, users, version_assets, versions
-from ..outputs import DiffResult, FeedbackEntry, Page, PublishResult, Report, ReportRow, Version, VersionEntry
+from ..outputs import DiffResult, FeedbackEntry, Page, PublishResult, Report, ReportRow, ReportSummary, Version, VersionEntry
 from ..schemas import FeedbackInput, ReportInput
 from .common import Limit, Offset, count, page, take
 
@@ -119,6 +119,15 @@ def list_reports(session: Db, actor: Identity, limit: Limit = 10, offset: Offset
                  q: str = Query("", max_length=120)):
     statement, total = listing_statements(actor, status, q)
     return page(session, statement, total, limit, offset)
+
+@router.get("/summary", response_model=ReportSummary)
+def report_summary(session: Db, actor: Identity):
+    scope = actor.scope("report.read", "report")
+    groups = dict(session.execute(select(reports.c.status, func.count()).where(
+        reports.c.deleted_at.is_(None), scope_filter(reports, scope, actor)
+    ).group_by(reports.c.status)).all())
+    return {"total": sum(groups.values()), "draft": groups.get("draft", 0),
+            "published": groups.get("published", 0), "archived": groups.get("archived", 0)}
 
 @router.post("", status_code=201, response_model=Report)
 def create_report(payload: ReportInput, response: Response, session: Db, actor: Identity):

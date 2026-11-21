@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant } from '../auth'
-import { dateText, type Page, type ReportRow, type Status } from '../types'
+import { dateText, type Page, type ReportRow, type ReportSummary, type Status } from '../types'
 import ReportFilters from '../components/ReportFilters.vue'
 import StatusPill from '../components/StatusPill.vue'
 
@@ -16,7 +16,7 @@ const states = [
   { key: 'archived', label: '已归档', icon: Archive },
 ] as const
 const rows = ref<ReportRow[]>([])
-const totals = ref<Record<string, number>>({})
+const totals = ref<ReportSummary>()
 const status = ref<Status | ''>('')
 const keyword = ref('')
 const total = ref(0)
@@ -43,12 +43,13 @@ async function load() {
 function filter() { current.value = 1; void load() }
 function selectStatus(value: Status | '') { status.value = value; filter() }
 function reset() { keyword.value = ''; selectStatus('') }
-onMounted(async () => {
-  await load()
-  try {
-    const counts = await Promise.all(states.map(({ key }) => api<Page<ReportRow>>('/reports' + params({ status: key, limit: 1 }))))
-    totals.value = Object.fromEntries(states.map(({ key }, index) => [key, counts[index].total]))
-  } catch { /* The report table provides the request error and retry action. */ }
+async function loadSummary() {
+  try { totals.value = await api<ReportSummary>('/reports/summary') }
+  catch { totals.value = undefined }
+}
+onMounted(() => {
+  void load()
+  void loadSummary()
 })
 </script>
 <template>
@@ -60,7 +61,7 @@ onMounted(async () => {
     <button v-for="(item, index) in states" :key="item.key" type="button" class="stat" :class="{ selected: status === item.key }"
             :aria-pressed="status === item.key" @click="selectStatus(item.key)">
       <span class="stat-icon" :class="'tone-' + index"><component :is="item.icon" :size="20" /></span>
-      <span><small>{{ item.label }}</small><strong>{{ totals[item.key] ?? '—' }}</strong></span>
+      <span><small>{{ item.label }}</small><strong>{{ totals?.[item.key || 'total'] ?? '—' }}</strong></span>
     </button>
   </div>
   <section class="panel report-list">

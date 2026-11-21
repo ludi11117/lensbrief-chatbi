@@ -113,6 +113,12 @@ class ReportRow(BaseModel):
     current_version: int | None
     updated_at: str
 
+class ReportSummary(BaseModel):
+    total: int
+    draft: int
+    published: int
+    archived: int
+
 class ReportSnapshot(BaseModel):
     title: str
     description: str

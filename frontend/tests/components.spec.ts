@@ -39,6 +39,16 @@ beforeEach(() => {
 })
 
 describe('报告列表筛选', () => {
+  it('首屏分别请求一次列表和状态汇总', async () => {
+    vi.mocked(api).mockImplementation(async (path) => path === '/reports/summary'
+      ? { total: 8, draft: 3, published: 4, archived: 1 }
+      : { items: [], total: 8, limit: 10, offset: 0 })
+    const wrapper = mount(ReportsView, { global })
+    await flushPromises()
+    expect(vi.mocked(api).mock.calls.map(([path]) => path)).toEqual(['/reports?limit=10&offset=0', '/reports/summary'])
+    expect(wrapper.findAll('.stat strong').map(stat => stat.text())).toEqual(['8', '3', '4', '1'])
+    wrapper.unmount()
+  })
   it('使用关键字和状态查询，并在筛选时重置分页', async () => {
     const wrapper = mount(ReportsView, { global })
     await flushPromises()

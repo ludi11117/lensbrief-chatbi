@@ -12,6 +12,7 @@
 | `POST /auth/login` | 接收用户名、密码，返回 8 小时 JWT 和身份 | 公开 |
 | `GET /auth/me` | 返回当前账号、角色和动作范围 | 已登录 |
 | `GET /reports` | 报告分页，`status` 可取 draft、published、archived，`q` 匹配标题或摘要 | report.read |
+| `GET /reports/summary` | 当前权限下的报告总数及各状态计数 | report.read |
 | `POST /reports` | 创建草稿，返回报告，HTTP 201 | report.create |
 | `GET /reports/{id}` | 报告内容、附件、状态、当前版本与动作授权 | report.read |
 | `PUT /reports/{id}` | 替换工作稿字段和附件清单 | report.edit |
