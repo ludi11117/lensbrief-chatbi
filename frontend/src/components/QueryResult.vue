@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Download } from 'lucide-vue-next'
 import { computed, defineAsyncComponent } from 'vue'
-import { comparisonRows } from '../comparison'
+import { changeUnit, comparisonRows } from '../comparison'
 import { downloadBlob, resultCsv } from '../download'
 import { scopeText, type QueryResult } from '../types'
 const props = defineProps<{ result: QueryResult; exportName?: string }>()
@@ -11,6 +11,7 @@ const isDaily = computed(() => props.result.dimension_code === 'day'
 const comparisons = computed(() => props.result.comparison ? comparisonRows(props.result) : [])
 const highest = computed(() => Math.max(1, ...props.result.rows.map(row => row.value ?? 0)))
 const formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 })
+const changeFormatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2, signDisplay: 'exceptZero' })
 function exportRows() {
   const filename = (props.exportName ?? 'query-' + props.result.start + '-to-' + props.result.end) + '.csv'
   downloadBlob(new Blob([resultCsv(props.result)], { type: 'text/csv;charset=utf-8' }), filename)
@@ -29,6 +30,7 @@ function exportRows() {
         <el-table-column prop="label" :label="result.dimension_name" />
         <el-table-column :label="'本期 / ' + result.unit"><template #default="{ row }">{{ row.current === null ? '—' : formatter.format(row.current) }}</template></el-table-column>
         <el-table-column :label="'对照期 / ' + result.unit"><template #default="{ row }">{{ row.previous === null ? '—' : formatter.format(row.previous) }}</template></el-table-column>
+        <el-table-column :label="'差值 / ' + changeUnit(result.unit)"><template #default="{ row }">{{ row.change === null ? '—' : changeFormatter.format(row.change) }}</template></el-table-column>
       </el-table>
       <el-empty v-else description="两个区间均暂无结果" :image-size="65" />
     </template>

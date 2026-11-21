@@ -114,7 +114,7 @@ erDiagram
 - 报告预览和查询详情可导出当前已授权的聚合结果。历史版本的文件名带版本号，数值保留原精度，CSV 用 UTF-8 编码和 BOM，便于用 Excel 打开。 [Metabase 查询结果导出](https://github.com/metabase/metabase/blob/master/docs/questions/exporting-results.md)
 - 报告预览中的「打印报告」可打印当前所选版本，也可在浏览器中另存为 PDF。版面保留正文、指标、附件名称和知识口径，打印区域只包含报告正文区。
 - 按日查询展示趋势折线，缺失的中间日期留作断点，并保留可展开的原始数值表。 [Chart.js 折线图](https://github.com/chartjs/Chart.js/blob/master/docs/charts/line.md)
-- 渠道、产品或部门分组可勾选「对照上一期」。对照期是紧邻本期前方的等长区间，两期使用相同权限和统计口径。明细与 CSV 均保留两期数据和日期，缺失组留空。 [Metabase 趋势对照](https://github.com/metabase/metabase/blob/master/docs/questions/visualizations/trend.md)
+- 渠道、产品或部门分组可勾选「对照上一期」。对照期是紧邻本期前方的等长区间，两期使用相同权限和统计口径。明细与 CSV 显示两期数值及差值，退款率差值用百分点。有一期缺值时，差值留空。 [Metabase 趋势对照](https://github.com/metabase/metabase/blob/master/docs/questions/visualizations/trend.md)
 - 可在查询表单按渠道缩小数据范围。下拉选项来自当前账号可查询的数据。结果、报告快照和 CSV 会保留筛选渠道，两期对照共享同一个筛选。 [Metabase 分类筛选](https://github.com/metabase/metabase/blob/master/docs/questions/query-builder/filters.md)
 
 ### 场景知识包与分析上下文
@@ -174,7 +174,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入测试数据。
 
-本地实测通过 pytest 67 项、Vitest 9 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 68 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

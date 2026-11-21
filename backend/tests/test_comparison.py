@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 
 def test_previous_period_uses_same_metric_scope_and_is_saved_with_report(client, auth, body, query_body):
@@ -20,6 +22,19 @@ def test_previous_period_uses_same_metric_scope_and_is_saved_with_report(client,
     assert client.post(path + "/publish", headers=headers).status_code == 201
     saved = client.get(path + "/versions/1", headers=headers).json()
     assert saved["query"]["comparison"] == result["comparison"]
+
+def test_comparison_draft_reports_percentage_point_change(client, auth, query_body):
+    headers = auth()
+    result = client.post("/api/queries", headers=headers, json={
+        **query_body, "metric": "refund_rate", "dimension": "product", "compare_previous": True,
+        "start": "2026-10-15", "end": "2026-10-21",
+    }).json()
+    peak = max(result["rows"], key=lambda row: row["value"])
+    prior = next(row for row in result["comparison"]["rows"] if row["label"] == peak["label"])
+    difference = Decimal(str(peak["value"])) - Decimal(str(prior["value"]))
+    draft = client.post("/api/drafts/generate", headers=headers, json={"query_id": result["id"]})
+    assert draft.status_code == 200
+    assert f"{peak['label']}的本期与对照期差值为 {difference.normalize():+,f} 百分点" in draft.json()["content"]
 
 def test_previous_period_returns_empty_rows_when_no_data(client, auth, query_body):
     response = client.post("/api/queries", headers=auth(), json={**query_body, "compare_previous": True})

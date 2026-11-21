@@ -22,6 +22,14 @@ describe('查询 CSV', () => {
       comparison: { start: '2026-08-31', end: '2026-09-30', rows: [{ label: '官网', value: 20 }, { label: '电商', value: 12 }] },
     })
     expect(content).toContain('"本期 销售额 (元) 2026-10-01 至 2026-10-31","对照期 销售额 (元) 2026-08-31 至 2026-09-30"')
-    expect(content).toContain('"官网",0,20,"指定渠道"\r\n"零售",15,,"指定渠道"\r\n"电商",,12,"指定渠道"\r\n')
+    expect(content).toContain('"差值 (元)","渠道筛选"')
+    expect(content).toContain('"官网",0,20,-20,"指定渠道"\r\n"零售",15,,,"指定渠道"\r\n"电商",,12,,"指定渠道"\r\n')
+  })
+  it('退款率差值使用百分点，清除浮点运算尾差', () => {
+    const content = resultCsv({
+      ...result, metric_name: '退款率', unit: '%', rows: [{ label: '官网', value: 5.17 }],
+      comparison: { start: '2026-08-31', end: '2026-09-30', rows: [{ label: '官网', value: 4.93 }] },
+    })
+    expect(content).toContain('"差值 (百分点)"\r\n"官网",5.17,4.93,0.24\r\n')
   })
 })

@@ -245,6 +245,12 @@ def mock_draft(goal, result):
         content += f"\n数据仅包含渠道筛选「{channel}」。"
     if comparison := result.get("comparison"):
         content += f"\n\n对照期\n{comparison['start']} 至 {comparison['end']}，返回 {len(comparison['rows'])} 组。"
+        if peak:
+            prior = next((row["value"] for row in comparison["rows"] if row["label"] == peak["label"]), None)
+            if prior is not None:
+                change = (Decimal(str(peak["value"])) - Decimal(str(prior))).normalize()
+                unit = "百分点" if result["unit"] == "%" else result["unit"]
+                content += f"\n{peak['label']}的本期与对照期差值为 {change:+,f} {unit}。"
     if knowledge := result.get("knowledge"):
         references = "\n".join(f"• {item['title']}：{item['content']}" for item in knowledge["items"])
         content += f"\n\n知识参考 · {knowledge['title']} v{knowledge['revision']}\n{references}"

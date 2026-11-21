@@ -1,5 +1,5 @@
 import type { QueryResult } from './types'
-import { comparisonRows } from './comparison'
+import { changeUnit, comparisonRows } from './comparison'
 
 function csvCell(value: string | number | null) {
   if (typeof value !== 'string') return value ?? ''
@@ -14,9 +14,10 @@ export function resultCsv(result: QueryResult) {
   if (previous) {
     header[1] = `本期 ${measure} ${result.start} 至 ${result.end}`
     header.push(`对照期 ${measure} ${previous.start} 至 ${previous.end}`)
+    header.push(`差值 (${changeUnit(result.unit)})`)
   }
   const rows = previous
-    ? comparisonRows(result).map(row => [row.label, row.current, row.previous])
+    ? comparisonRows(result).map(row => [row.label, row.current, row.previous, row.change])
     : result.rows.map(row => [row.label, row.value])
   const channel = result.channel
   if (channel) {
