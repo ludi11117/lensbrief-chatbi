@@ -33,7 +33,24 @@ const saving = ref(false)
 const querying = ref(false)
 const planning = ref(false)
 const comparePrevious = ref(false)
-const hasPendingPlan = ref(false)
+const currentFilters = computed(() => ({ ...fields, compare_previous: comparePrevious.value && fields.dimension !== 'day' }))
+const snapshotFilters = computed(() => {
+  const snapshot = result.value
+  if (!snapshot) return null
+  return {
+    metric: metricList.value.find(item => item.name === snapshot.metric_name)?.code ?? fields.metric,
+    dimension: snapshot.dimension_code ?? dimensionList.value.find(item => item.name === snapshot.dimension_name)?.code ?? fields.dimension,
+    start: snapshot.start, end: snapshot.end, channel: snapshot.channel ?? null,
+    compare_previous: Boolean(snapshot.comparison),
+  }
+})
+const queryChanged = computed(() => {
+  const saved = snapshotFilters.value
+  const current = currentFilters.value
+  return saved !== null && (saved.metric !== current.metric || saved.dimension !== current.dimension
+    || saved.start !== current.start || saved.end !== current.end || saved.channel !== current.channel
+    || saved.compare_previous !== current.compare_previous)
+})
 const generating = ref(false)
 const uploading = ref(false)
 const assetsOpen = ref(false)
@@ -129,11 +146,15 @@ function changeContext(value: number | null) {
   if (!goal.value || goal.value === previous) goal.value = selectedContext.value?.objective ?? ''
   result.value = null
   queryId.value = null
-  hasPendingPlan.value = false
 }
 function applyPlan({ metric, dimension, start, end, channel }: QueryPlan) {
-  hasPendingPlan.value = Boolean(result.value)
   Object.assign(fields, { metric, dimension, start, end, channel })
+}
+function restoreConditions() {
+  if (!snapshotFilters.value) return
+  const { compare_previous, ...saved } = snapshotFilters.value
+  Object.assign(fields, saved)
+  comparePrevious.value = compare_previous
 }
 async function runQuery() {
   querying.value = true
@@ -142,15 +163,12 @@ async function runQuery() {
     const grant = user.value?.grants['dataset.query']
     const scope: Scope = grant === 'own' ? 'own' : 'department'
     const response = await api<QueryResult & { id: number }>('/queries', {
-      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...fields, scope, context_id: contextId.value,
-        compare_previous: comparePrevious.value && fields.dimension !== 'day' }),
+      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...currentFilters.value, scope, context_id: contextId.value }),
     })
     if (reportId.value && result.value && queryId.value) {
       ElMessage.info('本次查询将替换工作稿关联的数据。')
     }
-    result.value = response
-    queryId.value = response.id
-    hasPendingPlan.value = false
+    hydrateResult(response, response.id)
   } catch (err) { error.value = errorText(err) } finally { querying.value = false }
 }
 async function generateDraft() {
@@ -218,7 +236,7 @@ async function save() {
       <input ref="fileInput" type="file" class="hidden-input" aria-label="上传附件" accept=".png,.jpg,.jpeg,.pdf,.csv" @change="upload" />
       <p v-if="!media.length" class="muted">支持 PNG、JPEG、PDF 和 CSV，单文件上限 5 MiB。</p>
       <div v-for="file in media" :key="file.id" class="attachment"><span>{{ file.filename }}</span><button type="button" class="icon-button" :aria-label="'移除 ' + file.filename" @click="media = media.filter(item => item.id !== file.id)"><X :size="16" /></button></div>
-      <div class="footer-actions"><el-button :disabled="saving" @click="router.back()">取消</el-button><el-button type="primary" native-type="submit" :loading="saving" :disabled="waiting || uploading || generating">保存报告</el-button></div>
+      <div class="footer-actions"><el-button :disabled="saving" @click="router.back()">取消</el-button><el-button type="primary" native-type="submit" :loading="saving" :disabled="waiting || uploading || generating || querying || planning || queryChanged">保存报告</el-button></div>
     </form>
     <section class="panel form-panel">
       <h2>关联数据</h2>
@@ -255,11 +273,14 @@ async function save() {
       </template>
       <template v-if="result">
         <p v-if="queryId" class="muted">来源 · 查询记录 #{{ queryId }}</p>
-        <p v-if="hasPendingPlan" class="muted">下方仍为上次查询结果。运行新查询后会更新关联数据。</p>
+        <div v-if="queryChanged" class="plan-feedback" aria-live="polite">
+          <p>下方仍为上次查询结果。请运行新查询，或恢复上次查询条件。</p>
+          <el-button text type="primary" :disabled="querying || planning" @click="restoreConditions">恢复上次查询条件</el-button>
+        </div>
         <QueryPreview :result="result" :export-name="queryId ? 'query-' + queryId : undefined" />
         <template v-if="hasGrant('report.create')">
           <label for="goal">分析目标（可选）</label><el-input id="goal" v-model="goal" maxlength="500" placeholder="希望报告回答什么？" />
-          <el-button plain type="primary" :loading="generating" :disabled="querying || planning" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>
+          <el-button plain type="primary" :loading="generating" :disabled="querying || planning || queryChanged" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>
         </template>
       </template>
     </section>
