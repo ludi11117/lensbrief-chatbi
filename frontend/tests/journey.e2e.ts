@@ -27,6 +27,9 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByRole('button', { name: '发布报告' }).click()
   await page.getByRole('button', { name: '确认', exact: true }).click()
   await expect(page.getByText('当前发布 v1')).toBeVisible()
+  await page.getByRole('textbox', { name: '反馈内容' }).fill('核对渠道归类')
+  await page.getByRole('button', { name: '提交反馈' }).click()
+  await expect(page.getByText('核对渠道归类', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '编辑报告' }).click()
   await page.getByLabel('报告标题').fill(revised)
   await page.getByRole('button', { name: '保存报告' }).click()
@@ -41,6 +44,12 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByRole('button', { name: '确认', exact: true }).click()
   await expect(page.getByText('当前发布 v3')).toBeVisible()
   await expect(page.getByText('恢复自 v1')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'v3 版本反馈' })).toBeVisible()
+  await expect(page.getByText('核对渠道归类', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: /^v1\s/ }).click()
+  await expect(page).toHaveURL(reportUrl + '?version=1')
+  await page.reload()
+  await expect(page.getByText('核对渠道归类', { exact: true })).toBeVisible()
   if (process.env.LENSBRIEF_SCREENSHOT_DIR) {
     await page.screenshot({ path: process.env.LENSBRIEF_SCREENSHOT_DIR + '/lensbrief-report.png', fullPage: true })
   }

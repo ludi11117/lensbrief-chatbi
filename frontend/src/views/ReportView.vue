@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { FileText, GitCompareArrows, History } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, api, errorText, params } from '../api'
 import QueryPreview from '../components/QueryResult.vue'
 import ReportActions from '../components/ReportActions.vue'
 import StatusPill from '../components/StatusPill.vue'
+import VersionFeedback from '../components/VersionFeedback.vue'
 import { dateText, type Page, type Report, type Snapshot, type VersionDiff, type VersionRow } from '../types'
 
 const route = useRoute()
@@ -29,6 +30,8 @@ const busy = ref(false)
 const error = ref('')
 const errorCode = ref<number>()
 const showing = computed(() => selected.value ?? report.value)
+const discussionVersion = computed(() => selectedNumber.value ??
+  (report.value?.has_unpublished_changes ? null : report.value?.current_version))
 const labels: Record<string, string> = { title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID' }
 const format = (value: unknown) => Array.isArray(value) ? value.join('、') || '—' : String(value ?? '—')
 let previewRequest = 0
@@ -48,7 +51,17 @@ async function load() {
   catch (err) { error.value = errorText(err); errorCode.value = err instanceof ApiError ? err.status : undefined }
   finally { loading.value = false }
 }
-onMounted(load)
+onMounted(async () => { await load(); if (report.value) await previewRouteVersion() })
+watch(() => route.query.version, () => { if (report.value) void previewRouteVersion() })
+
+function previewRouteVersion() {
+  const version = Number(route.query.version)
+  if (typeof route.query.version === 'string' && Number.isSafeInteger(version) && version > 0) return preview(version)
+  return preview(null)
+}
+function selectVersion(number: number | null) {
+  return router.replace({ query: { ...route.query, version: number?.toString() } })
+}
 
 async function preview(number: number | null) {
   const request = ++previewRequest
@@ -95,7 +108,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
     await api(path + '/' + suffix, { method: 'POST' })
     ElMessage.success({ publish: '已发布新版本', archive: '报告已归档', rollback: '已回滚并发布新版本' }[action])
     historyPage.value = 1
-    await preview(null)
+    await selectVersion(null)
     await load()
   } catch (err) { error.value = errorText(err) } finally { busy.value = false }
 }
@@ -126,14 +139,17 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
               <FileText :size="17" /><span>{{ file.filename }}</span><strong>预览</strong>
             </RouterLink>
           </div>
+          <VersionFeedback v-if="discussionVersion" :key="discussionVersion" :report-path="path"
+                           :version="discussionVersion" :archived="report.status === 'archived'" />
+          <p v-else-if="report.current_version" class="muted version-feedback">选择一个已发布版本查看反馈。</p>
         </article>
         <section class="panel version-panel">
           <div class="section-head"><h2><History :size="19" /> 版本记录</h2><el-button v-if="versionsTotal >= 2" size="small" @click="openCompare"><GitCompareArrows :size="15" /> 对比版本</el-button></div>
           <el-empty v-if="!versions.length" description="发布报告后将生成版本" :image-size="60" />
           <template v-else>
-            <el-button v-if="selectedNumber" text type="primary" @click="preview(null)">返回当前内容</el-button>
+            <el-button v-if="selectedNumber" text type="primary" @click="selectVersion(null)">返回当前内容</el-button>
             <div v-for="version in versions" :key="version.number" class="version-item" :class="{ selected: selectedNumber === version.number }">
-              <button class="version-button" type="button" @click="preview(version.number)">
+              <button class="version-button" type="button" @click="selectVersion(version.number)">
                 <strong>v{{ version.number }} <span v-if="version.number === report.current_version" class="status-pill published">当前</span></strong>
                 <small>{{ dateText(version.created_at) }} · {{ version.created_by_name }}</small>
                 <small v-if="version.restored_from">恢复自 v{{ version.restored_from }}</small>

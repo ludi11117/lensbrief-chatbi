@@ -140,6 +140,14 @@ nav a.active svg { color: #9db2ff }
 .preview-description { margin-top: 8px; color: var(--muted); line-height: 1.6; overflow-wrap: anywhere }
 .report-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; font-size: .94rem; margin-top: 17px; color: #2b3852 }
 .version-item { display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: 4px; gap: 6px }
+.version-feedback { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 16px }
+.version-feedback h3 svg { margin-right: 4px }
+.feedback-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px }
+.feedback-list li { background: #f6f8fc; border-radius: 7px; padding: 11px; overflow-wrap: anywhere }
+.feedback-list .section-head { margin-bottom: 6px }
+.feedback-list time { color: var(--muted); font-size: .76rem }
+.feedback-list p { white-space: pre-wrap; line-height: 1.6; font-size: .86rem }
+.feedback-form { margin-top: 12px; display: grid; gap: 8px; justify-items: start }
 .version-item.selected { background: #eef2ff; border-radius: 6px }
 .version-button { flex: 1; min-width: 0; text-align: left; border: 0; color: #202d4b; background: transparent; cursor: pointer; padding: 9px }
 .version-button:hover { color: var(--blue) }

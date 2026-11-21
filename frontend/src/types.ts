@@ -34,6 +34,7 @@ export interface Report extends Snapshot {
   has_unpublished_changes: boolean; allowed: Record<string, boolean>
 }
 export interface VersionRow { number: number; created_at: string; restored_from: number | null; created_by_name: string }
+export interface Feedback { id: number; author_name: string; body: string; created_at: string }
 export interface VersionDiff {
   base: number; target: number; content_changed: boolean
   changes: { field: string; before: unknown; after: unknown }[]

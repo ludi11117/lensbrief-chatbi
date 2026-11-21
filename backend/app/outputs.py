@@ -139,6 +139,12 @@ class VersionEntry(BaseModel):
     restored_from: int | None
     created_by_name: str
 
+class FeedbackEntry(BaseModel):
+    id: int
+    author_name: str
+    body: str
+    created_at: str
+
 class PublishResult(BaseModel):
     report_id: int
     number: int

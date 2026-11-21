@@ -21,6 +21,8 @@
 | `GET /reports/{id}/versions` | 版本历史分页，按版本号倒序 | report.read |
 | `GET /reports/{id}/versions/{number}` | 查看不可修改的版本快照 | report.read |
 | `GET /reports/{id}/versions/diff?base=1&target=2` | 比较元数据与正文是否变化 | report.read |
+| `GET /reports/{id}/versions/{number}/feedback` | 指定版本的反馈，按最新发布顺序分页 | report.read |
+| `POST /reports/{id}/versions/{number}/feedback` | 提交 `{"body":"建议核对渠道归类"}`，HTTP 201 | report.read，报告处于已发布状态 |
 | `POST /reports/{id}/rollback/{number}` | 用历史版本新建一个发布版本，HTTP 201 | report.rollback |
 | `GET /datasets` | 数据集目录分页 | dataset.read |
 | `GET /datasets/{id}/metrics` | 指标编码、名称、单位与口径分页 | dataset.read |
@@ -92,6 +94,8 @@
 `query_id` 必须为同数据集的成功查询。新附件须由当前用户上传。表单保存后可发起发布，无需请求体。发布和回滚在同一个数据库事务中更新版本、报告指针与审计。归档是终止状态，编辑、发布或回滚会返回 409。
 
 `diff` 返回 `{base,target,changes,content_changed}`。变更条目包含 `field`、`before`、`after`，涉及标题、摘要、数据集、查询和附件 ID。
+
+反馈绑定报告和版本号，包含 `id`、`author_name`、`body`、`created_at`。正文为 1 至 1200 字符。归档后可以查看反馈，提交新反馈返回 409。报告页面用 `?version=1` 链接定位到指定版本。
 
 ### 场景知识与上下文
 

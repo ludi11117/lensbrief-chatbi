@@ -6,9 +6,9 @@ from sqlalchemy import delete, insert, select, update
 
 from ..auth import Db, Denied, Identity, audit, scope_filter
 from ..db import as_dict, begin_write, json_dump, utc_now
-from ..models import assets, datasets, query_logs, report_assets, reports, users, version_assets, versions
-from ..outputs import DiffResult, Page, PublishResult, Report, ReportRow, Version, VersionEntry
-from ..schemas import ReportInput
+from ..models import assets, datasets, query_logs, report_assets, report_feedback, reports, users, version_assets, versions
+from ..outputs import DiffResult, FeedbackEntry, Page, PublishResult, Report, ReportRow, Version, VersionEntry
+from ..schemas import FeedbackInput, ReportInput
 from .common import Limit, Offset, count, page, take
 
 router = APIRouter(prefix="/reports", tags=["报告及版本"])
@@ -223,3 +223,26 @@ def version_detail(report_id: int, number: int, session: Db, actor: Identity):
     selected = get_version(session, report_id, number)
     snapshot = json.loads(selected.pop("snapshot_json"))
     return {**selected, **snapshot, "assets": media_metadata(session, snapshot["asset_ids"])}
+
+@router.get("/{report_id}/versions/{number}/feedback", response_model=Page[FeedbackEntry])
+def list_feedback(report_id: int, number: int, session: Db, actor: Identity, limit: Limit = 10, offset: Offset = 0):
+    get_report(session, actor, report_id, "report.read")
+    get_version(session, report_id, number)
+    condition = (report_feedback.c.report_id == report_id) & (report_feedback.c.version == number)
+    statement = select(report_feedback.c.id, report_feedback.c.body, report_feedback.c.created_at,
+                       users.c.name.label("author_name")).join(users).where(condition).order_by(report_feedback.c.id.desc())
+    return page(session, statement, count(report_feedback, condition), limit, offset)
+
+@router.post("/{report_id}/versions/{number}/feedback", response_model=FeedbackEntry, status_code=201)
+def create_feedback(report_id: int, number: int, payload: FeedbackInput, session: Db, actor: Identity):
+    begin_write(session)
+    report = get_report(session, actor, report_id, "report.read")
+    get_version(session, report_id, number)
+    require_state(report, {"published"})
+    when = utc_now()
+    feedback_id = session.execute(insert(report_feedback).values(
+        report_id=report_id, version=number, author_id=actor.id, body=payload.body, created_at=when
+    )).inserted_primary_key[0]
+    audit(session, actor.id, "report.feedback", "report", report_id, version=number, feedback_id=feedback_id)
+    session.commit()
+    return {"id": feedback_id, "body": payload.body, "created_at": when, "author_name": actor.name}

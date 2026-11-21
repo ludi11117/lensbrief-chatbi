@@ -155,6 +155,17 @@ version_assets = Table("version_asset", metadata,
                        Column("version", Integer, primary_key=True),
                        Column("asset_id", ForeignKey("asset.id"), primary_key=True),
                        ForeignKeyConstraint(["report_id", "version"], ["report_version.report_id", "report_version.number"]))
+report_feedback = Table(
+    "report_feedback", metadata, Column("id", Integer, primary_key=True),
+    Column("report_id", Integer, nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("author_id", ForeignKey("user.id"), nullable=False),
+    Column("body", String(1200), nullable=False),
+    Column("created_at", String(32), nullable=False),
+    ForeignKeyConstraint(["report_id", "version"], ["report_version.report_id", "report_version.number"]),
+)
+Index("ix_feedback_version_id", report_feedback.c.report_id, report_feedback.c.version, report_feedback.c.id)
+
 audit_logs = Table("audit_log", metadata, Column("id", Integer, primary_key=True),
                    Column("user_id", ForeignKey("user.id"), nullable=False),
                    Column("action", String(48), nullable=False),
