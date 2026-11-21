@@ -3,6 +3,9 @@ from dataclasses import replace
 
 import httpx
 import pytest
+from sqlalchemy import update
+
+from backend.app.models import sales
 
 def plan(client, headers, question, context_id=None):
     return client.post("/api/queries/plan", headers=headers, json={
@@ -37,10 +40,30 @@ def test_scoped_default_window_and_implicit_year(client, auth):
     assert "2026 年" in month["notes"][0]
     assert plan(client, auth("admin"), "2026年10月按渠道看GMV").json()["scope"] == "department"
 
+def test_recent_days_use_latest_visible_data_day(app, client, auth, query_body):
+    with app.state.session_factory() as session:
+        session.execute(update(sales).where(sales.c.department_id == 2, sales.c.day == "2026-10-31")
+                        .values(day="2026-11-07"))
+        session.commit()
+    owner = auth()
+    work = context(client, owner)
+    ran = client.post("/api/queries", headers=owner, json={
+        **query_body, "end": "2026-10-08", "context_id": work,
+    })
+    assert ran.status_code == 201
+    for question, context_id in [("最近 7 天按产品看成交额", None), ("改成过去7个自然日", work)]:
+        resolved = plan(client, owner, question, context_id)
+        assert resolved.status_code == 200, resolved.text
+        result = resolved.json()
+        assert (result["start"], result["end"]) == ("2026-10-25", "2026-10-31")
+        assert "最新数据日 2026-10-31" in result["notes"][0]
+    assert plan(client, auth("overseas"), "最近7天按渠道看成交额").json()["end"] == "2026-11-07"
+
 @pytest.mark.parametrize("question", [
     "按渠道查看销售额和订单量", "同比分析上月各渠道销售额", "看看销售情况", "按产品比较官网和电商平台销售额",
     "2026-10-15 至 2026-10-01 按渠道看销售额", "2026-13-01 按渠道看销售额",
     "2026年11月2日按渠道看销售额", "2026年9月和10月按渠道看销售额",
+    "最近367天按产品看退款率", "最近一周按产品看退款率", "十月和最近7天按渠道看销售额",
 ])
 def test_ambiguous_invalid_or_unsupported_questions_rejected(client, auth, question):
     response = plan(client, auth(), question)

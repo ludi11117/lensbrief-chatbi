@@ -22,10 +22,11 @@ DIMENSIONS = {
 MONTH_NAMES = ("一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二")
 MONTHS = re.compile(r"(?<!\d)(?:(\d{4})\s*年\s*)?(\d{1,2}|十[一二]?|[一二三四五六七八九])\s*月")
 ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
+RECENT_DAYS = re.compile(r"(?:最近|过去|近)\s*(\d{1,3})\s*(?:天|个?自然日)")
 FOLLOW_UP = re.compile(r"^(?:那|然后)?(?:改成|改为|改按|改看|换成|换为|换按|再看|继续看|沿用)")
 UNSUPPORTED = re.compile(
     r"同比|环比|增长率|增幅|利润|净收入|成本|退款数|退款额|客单价|用户数|占比|排行前|top\s*\d|"
-    r"最近|过去|昨天|前天|今天|本月|上月|上个月|下月|本周|上周|下周|今年|去年|季度|"
+    r"昨天|前天|今天|本月|上月|上个月|下月|本周|上周|下周|今年|去年|季度|"
     r"华[东南北中]|海外|全国|北京|上海|深圳|trail x|pocket air|orbit mini|"
     r"全部范围|全量|所有区域|排除|筛选|过滤|不含|不看|别看|大于|小于|高于|低于|多少用户"
 )
@@ -78,9 +79,22 @@ def choose(text, choices, label):
         raise PlanError(f"请在一个问题中指定一种{label}。")
     return matches[0] if matches else None
 
-def requested_window(text, anchor):
+def requested_window(text, anchor, latest):
     iso = list(ISO_DATE.finditer(text))
     months = list(MONTHS.finditer(text))
+    recent = list(RECENT_DAYS.finditer(text))
+    remainder = RECENT_DAYS.sub("", text)
+    if re.search(r"最近|过去|(?:近|前)\s*\d", remainder):
+        raise PlanError("最近区间请使用“最近 7 天”一类的格式。")
+    if recent:
+        if iso or months or len(recent) > 1 or re.search(r"\d+\s*[天日号]|周", remainder):
+            raise PlanError("请指定一个连续的查询日期区间。")
+        days = int(recent[0][1])
+        if not 1 <= days <= 366:
+            raise PlanError("最近区间需覆盖 1 到 366 个自然日。")
+        if latest is None or days > latest.toordinal():
+            raise PlanError("缺少可用于计算最近区间的数据日期，请注明起止日期。")
+        return (latest - timedelta(days=days - 1), latest), f"以当前范围最新数据日 {latest} 为末日，取最近 {days} 天。"
     if iso:
         if months or len(iso) > 2:
             raise PlanError("请指定一个连续的查询日期区间。")
@@ -129,7 +143,7 @@ def resolve_question(question, available_window, previous, available_channels):
     metric = choose(axes_text, METRICS, "指标")
     dimension = choose(axes_text, DIMENSIONS, "分组维度")
     anchor = date.fromisoformat(previous["end"]) if follow_up else available_window[1]
-    window, note = requested_window(text, anchor)
+    window, note = requested_window(text, anchor, available_window[1])
     if follow_up and not (metric or dimension or window or channel or clear_channel):
         raise PlanError("请指出要调整的指标、维度、日期或渠道。")
     inherited = []
