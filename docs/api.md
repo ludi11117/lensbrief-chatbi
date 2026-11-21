@@ -88,7 +88,7 @@
 
 ### 草稿、发布与比较
 
-`POST /drafts/generate` 接收 `{"query_id":7,"goal":"复盘十月渠道销售"}`。将返回的标题、摘要和正文保存到 `POST /reports` 或 `PUT /reports/{id}`：
+`POST /drafts/generate` 接收 `{"query_id":7,"goal":"复盘十月渠道销售"}`。可添加 `"mode":"mock"` 直接使用离线草稿。两种模式使用相同的报告和查询权限。将返回的标题、摘要和正文保存到 `POST /reports` 或 `PUT /reports/{id}`：
 
 ```json
 {

@@ -289,5 +289,7 @@ def draft(payload: DraftInput, request: Request, session: Db, actor: Identity):
         raise Denied(actor.id, "report.attach_query", "query", payload.query_id)
     result = json.loads(query["result_json"])
     settings = request.app.state.settings
-    generated = remote_draft(settings, payload.goal, result) if settings.draft_mode == "llm"         else mock_draft(payload.goal, result)
-    return {**generated.model_dump(), "mode": settings.draft_mode, "query_id": payload.query_id}
+    mode = payload.mode or settings.draft_mode
+    session.rollback()
+    generated = remote_draft(settings, payload.goal, result) if mode == "llm" else mock_draft(payload.goal, result)
+    return {**generated.model_dump(), "mode": mode, "query_id": payload.query_id}

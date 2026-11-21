@@ -150,7 +150,12 @@ test('个人上下文引用知识包并保留查询历史', async ({ page }) => 
   await row.getByRole('link', { name: '新建报告' }).click()
   await page.getByRole('button', { name: '运行指标查询' }).click()
   await expect(page.getByText('渠道销售复盘 · 知识包 v1')).toBeVisible()
+  await page.route('**/api/drafts/generate', route => route.fulfill({
+    status: 502, json: { detail: '模型服务未返回有效草稿，请稍后重试。' },
+  }), { times: 1 })
   await page.getByRole('button', { name: '生成报告草稿' }).click()
+  await expect(page.getByText(/模型服务未返回有效草稿/)).toBeVisible()
+  await page.getByRole('button', { name: '改用离线草稿' }).click()
   await expect(page.getByLabel('正文')).toHaveValue(/渠道销售复盘 v1/)
   await expect(page.getByLabel('摘要')).toHaveValue('检查渠道数据口径')
   await page.getByLabel('自然语言提问').fill('改按产品')

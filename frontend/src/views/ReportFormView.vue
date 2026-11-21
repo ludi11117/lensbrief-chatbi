@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { FileUp, Play, Sparkles, X } from 'lucide-vue-next'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, errorText, params } from '../api'
+import { ApiError, api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import AssetPicker from '../components/AssetPicker.vue'
 import QueryPreview from '../components/QueryResult.vue'
@@ -59,6 +59,7 @@ const queryChanged = computed(() => {
     || saved.scope !== current.scope || saved.compare_previous !== current.compare_previous)
 })
 const generating = ref(false)
+const draftRecovery = ref<{ message: string; offline: boolean } | null>(null)
 const uploading = ref(false)
 const assetsOpen = ref(false)
 const fileInput = ref<HTMLInputElement>()
@@ -158,6 +159,7 @@ function changeContext(value: number | null) {
   if (!goal.value || goal.value === previous) goal.value = selectedContext.value?.objective ?? ''
   result.value = null
   queryId.value = null
+  draftRecovery.value = null
 }
 function applyPlan({ metric, dimension, start, end, channel, compare_previous }: QueryPlan) {
   Object.assign(fields, { metric, dimension, start, end, channel })
@@ -181,21 +183,24 @@ async function runQuery() {
       ElMessage.info('本次查询将替换工作稿关联的数据。')
     }
     hydrateResult(response, response.id)
+    draftRecovery.value = null
   } catch (err) { error.value = errorText(err) } finally { querying.value = false }
 }
-async function generateDraft() {
+async function generateDraft(mode?: 'mock') {
   if (form.content && !window.confirm('用生成的草稿覆盖当前标题、摘要和正文？')) return
   generating.value = true
-  error.value = ''
+  draftRecovery.value = null
   try {
     const draft = await api<{title: string; description: string; content: string; mode: string}>('/drafts/generate', {
-      method: 'POST', body: JSON.stringify({ query_id: queryId.value, goal: goal.value }),
+      method: 'POST', body: JSON.stringify({ query_id: queryId.value, goal: goal.value, mode }),
     })
     form.title = draft.title
     form.description = draft.description
     form.content = draft.content
     ElMessage.success(draft.mode === 'mock' ? '已生成离线草稿' : '已生成模型草稿')
-  } catch (err) { error.value = errorText(err) } finally { generating.value = false }
+  } catch (err) {
+    draftRecovery.value = { message: errorText(err), offline: err instanceof ApiError && [502, 503].includes(err.status) }
+  } finally { generating.value = false }
 }
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement
@@ -299,7 +304,9 @@ async function save() {
         <QueryPreview :result="result" :export-name="queryId ? 'query-' + queryId : undefined" />
         <template v-if="hasGrant('report.create')">
           <label for="goal">分析目标（可选）</label><el-input id="goal" v-model="goal" maxlength="500" placeholder="希望报告回答什么？" />
-          <el-button plain type="primary" :loading="generating" :disabled="querying || planning || queryChanged" @click="generateDraft"><Sparkles :size="16" /> 生成报告草稿</el-button>
+          <el-button plain type="primary" :loading="generating" :disabled="querying || planning || queryChanged" @click="generateDraft()"><Sparkles :size="16" /> 生成报告草稿</el-button>
+          <el-alert v-if="draftRecovery" type="error" :title="draftRecovery.message" :closable="false" show-icon />
+          <el-button v-if="draftRecovery?.offline" :disabled="querying || planning || queryChanged" @click="generateDraft('mock')">改用离线草稿</el-button>
         </template>
       </template>
     </section>

@@ -44,6 +44,19 @@ def test_openapi_describes_catalog_query_detail_and_audit_responses(client):
             properties = components[row]["properties"]
         assert fields <= properties.keys(), route
 
+def test_draft_can_use_offline_mode_when_the_provider_is_unavailable(app, client, auth, query_body):
+    app.state.settings = replace(app.state.settings, draft_mode="llm", model_url="", model_name="", model_key="")
+    owner = auth()
+    query = client.post("/api/queries", headers=owner, json=query_body)
+    assert query.status_code == 201
+    draft = {"query_id": query.json()["id"], "goal": "渠道复盘"}
+    path = "/api/drafts/generate"
+    assert client.post(path, headers=owner, json=draft).status_code == 503
+    response = client.post(path, headers=owner, json={**draft, "mode": "mock"})
+    assert response.status_code == 200
+    assert (response.json()["mode"], response.json()["description"]) == ("mock", "渠道复盘")
+    assert client.post(path, headers=auth("overseas"), json={**draft, "mode": "mock"}).status_code == 403
+
 def test_same_department_and_cross_department_403_is_audited(client, auth):
     assert client.get("/api/reports/1", headers=auth("manager")).status_code == 200
     assert client.get("/api/reports/2", headers=auth("manager")).status_code == 403

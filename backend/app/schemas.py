@@ -52,6 +52,7 @@ class QueryPlanInput(Input):
 class DraftInput(Input):
     query_id: int = Field(gt=0)
     goal: str = Field(default="", max_length=500)
+    mode: Literal["mock"] | None = None
 
 class DraftOutput(Input):
     title: str = Field(min_length=1, max_length=120)
