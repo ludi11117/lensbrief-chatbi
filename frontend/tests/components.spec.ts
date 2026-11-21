@@ -2,6 +2,7 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
+import { useRoute } from 'vue-router'
 import { user } from '../src/auth'
 import { api } from '../src/api'
 import ReportActions from '../src/components/ReportActions.vue'
@@ -10,7 +11,16 @@ import ReportsView from '../src/views/ReportsView.vue'
 vi.mock('../src/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../src/api')>(), api: vi.fn(),
 }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('vue-router', async () => {
+  const { reactive } = await import('vue')
+  const route = reactive({ name: 'reports', query: {} as Record<string, string> })
+  return {
+    useRoute: () => route,
+    useRouter: () => ({ push: vi.fn(), replace: ({ query }: { query: Record<string, string | undefined> }) => {
+      route.query = Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined)) as Record<string, string>
+    } }),
+  }
+})
 
 const table = defineComponent({ props: { data: Array }, template: '<div data-test="table">{{ data }}</div>' })
 const button = defineComponent({ props: { nativeType: String }, template: '<button :type="nativeType || \'button\'"><slot /></button>' })
@@ -34,7 +44,8 @@ const global = {
 }
 
 beforeEach(() => {
-  vi.mocked(api).mockReset().mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 })
+  vi.mocked(api).mockReset().mockResolvedValue({ items: [], total: 12, limit: 10, offset: 0 })
+  useRoute().query = {}
   user.value = { id: 1, username: 'analyst', name: '运营', department_id: 1, roles: [], grants: { 'report.read': 'own' } }
 })
 
@@ -59,6 +70,7 @@ describe('报告列表筛选', () => {
     await wrapper.get('form').trigger('submit')
     const request = new URL(vi.mocked(api).mock.lastCall![0], 'http://test')
     expect(Object.fromEntries(request.searchParams)).toEqual({ q: '渠道', status: 'published', limit: '10', offset: '0' })
+    expect(useRoute().query).toEqual({ q: '渠道', status: 'published' })
     wrapper.unmount()
   })
   it('重置按钮清空关键词与状态', async () => {
@@ -69,6 +81,14 @@ describe('报告列表筛选', () => {
     await wrapper.findAll('button').find(item => item.text() === '重置')!.trigger('click')
     const request = new URL(vi.mocked(api).mock.lastCall![0], 'http://test')
     expect(Object.fromEntries(request.searchParams)).toEqual({ limit: '10', offset: '0' })
+    wrapper.unmount()
+  })
+  it('从分享链接恢复搜索、状态和分页', async () => {
+    useRoute().query = { q: '渠道', status: 'published', page: '2', size: '5' }
+    const wrapper = mount(ReportsView, { global })
+    await flushPromises()
+    const request = new URL(vi.mocked(api).mock.calls[0][0], 'http://test')
+    expect(Object.fromEntries(request.searchParams)).toEqual({ q: '渠道', status: 'published', limit: '5', offset: '5' })
     wrapper.unmount()
   })
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { FileBarChart2, FileCheck2, FilePenLine, Plus, Archive } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant } from '../auth'
 import { dateText, type Page, type ReportRow, type ReportSummary, type Status } from '../types'
@@ -9,6 +9,8 @@ import ReportFilters from '../components/ReportFilters.vue'
 import StatusPill from '../components/StatusPill.vue'
 
 const router = useRouter()
+const route = useRoute()
+const pageSizes = [5, 10, 20, 50]
 const states = [
   { key: '', label: '全部报告', icon: FileBarChart2 },
   { key: 'draft', label: '草稿', icon: FilePenLine },
@@ -40,7 +42,28 @@ async function load() {
   } catch (err) { if (id === requestId) error.value = errorText(err) }
   finally { if (id === requestId) busy.value = false }
 }
-function filter() { current.value = 1; void load() }
+function loadFromUrl() {
+  const query = route.query
+  keyword.value = typeof query.q === 'string' ? query.q.slice(0, 120) : ''
+  status.value = states.find(item => item.key === query.status)?.key ?? ''
+  const rawSize = typeof query.size === 'string' ? Number(query.size) : 10
+  limit.value = pageSizes.includes(rawSize) ? rawSize : 10
+  const page = typeof query.page === 'string' ? Number(query.page) : 1
+  current.value = page > 0 && Number.isSafeInteger(page) && Number.isSafeInteger(page * limit.value) ? page : 1
+  void load()
+}
+function updateUrl() {
+  const query = {
+    q: keyword.value.trim() || undefined,
+    status: status.value || undefined,
+    page: current.value === 1 ? undefined : String(current.value),
+    size: limit.value === 10 ? undefined : String(limit.value),
+  }
+  if (Object.entries(query).every(([key, value]) => route.query[key] === value)) {
+    void load()
+  } else void router.replace({ query })
+}
+function filter() { current.value = 1; updateUrl() }
 function selectStatus(value: Status | '') { status.value = value; filter() }
 function reset() { keyword.value = ''; selectStatus('') }
 async function loadSummary() {
@@ -48,9 +71,10 @@ async function loadSummary() {
   catch { totals.value = undefined }
 }
 onMounted(() => {
-  void load()
+  loadFromUrl()
   void loadSummary()
 })
+watch(() => route.query, () => { if (route.name === 'reports') loadFromUrl() })
 </script>
 <template>
   <section class="hero">
@@ -80,7 +104,7 @@ onMounted(() => {
       <el-table-column label="更新时间" min-width="175"><template #default="{ row }">{{ dateText(row.updated_at) }}</template></el-table-column>
       <el-table-column label="操作" width="90"><template #default="{ row }"><RouterLink class="text-link" :to="'/reports/' + row.id">查看</RouterLink></template></el-table-column>
     </el-table>
-    <div class="pagination"><el-pagination v-model:current-page="current" v-model:page-size="limit" :page-sizes="[5, 10, 20, 50]" :total="total" background
-        layout="prev, pager, next, sizes" @current-change="load" @size-change="filter" /></div>
+    <div v-if="total" class="pagination"><el-pagination v-model:current-page="current" v-model:page-size="limit" :page-sizes="pageSizes" :total="total" background
+        layout="prev, pager, next, sizes" @current-change="updateUrl" @size-change="filter" /></div>
   </section>
 </template>

@@ -103,6 +103,7 @@ erDiagram
 ### 版本、权限和文件
 
 - 首次发布将草稿转为已发布。编辑已发布报告只更新工作稿，再次发布才产生新版本。归档后保留可读历史，删除为软删除。
+- 报告列表把关键词、状态与分页保存在 URL。刷新或打开分享链接可恢复筛选，查询仍按打开者的权限执行。 [URL 搜索参数设计](https://github.com/TanStack/router/blob/main/docs/router/guide/search-params.md)
 - 网页保存和发布时用 `If-Match` 核对工作稿。若其他操作者已保存，服务器返回 412，编辑页面保留本地输入。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
 - 版本对比展示字段旧值、新值和正文逐行增删。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
@@ -167,7 +168,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入一条测试报告。
 
-本地实测通过 pytest 59 项、Vitest 8 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 59 项、Vitest 9 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 
