@@ -16,4 +16,12 @@ describe('查询 CSV', () => {
     const content = resultCsv({ ...result, rows: [{ label: '=1+1', value: null }, { label: '无退款', value: -10 }] })
     expect(content).toContain('"\'=1+1",\r\n"无退款",-10\r\n')
   })
+  it('对照查询导出两个区间，保留只在某一期出现的分组', () => {
+    const content = resultCsv({
+      ...result, rows: [{ label: '官网', value: 0 }, { label: '零售', value: 15 }],
+      comparison: { start: '2026-08-31', end: '2026-09-30', rows: [{ label: '官网', value: 20 }, { label: '电商', value: 12 }] },
+    })
+    expect(content).toContain('"本期 销售额 (元) 2026-10-01 至 2026-10-31","对照期 销售额 (元) 2026-08-31 至 2026-09-30"')
+    expect(content).toContain('"官网",0,20\r\n"零售",15,\r\n"电商",,12\r\n')
+  })
 })

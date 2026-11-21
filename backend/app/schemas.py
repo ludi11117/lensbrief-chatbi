@@ -29,11 +29,17 @@ class QueryInput(Input):
     end: date
     scope: Literal["own", "department", "all"] | None = None
     context_id: int | None = Field(default=None, gt=0)
+    compare_previous: bool = False
 
     @model_validator(mode="after")
     def valid_range(self):
         if self.end < self.start or (self.end - self.start).days > 365:
             raise ValueError("日期范围需正向且最多覆盖 366 天。")
+        if self.compare_previous:
+            if self.dimension == "day":
+                raise ValueError("上一期对照适用于渠道、产品和部门分组。")
+            if self.start.toordinal() <= (self.end - self.start).days + 1:
+                raise ValueError("当前日期范围无法向前取等长区间。")
         return self
 
 class QueryPlanInput(Input):

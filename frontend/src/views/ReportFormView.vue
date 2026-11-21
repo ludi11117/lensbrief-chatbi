@@ -29,6 +29,7 @@ const waiting = ref(false)
 const saving = ref(false)
 const querying = ref(false)
 const planning = ref(false)
+const comparePrevious = ref(false)
 const hasPendingPlan = ref(false)
 const generating = ref(false)
 const uploading = ref(false)
@@ -70,7 +71,12 @@ onMounted(async () => {
       media.value = report.assets
       result.value = report.query
       queryId.value = report.query_id
-      if (report.query) { fields.start = report.query.start; fields.end = report.query.end }
+      if (report.query) {
+        fields.start = report.query.start
+        fields.end = report.query.end
+        fields.dimension = report.query.dimension_code ?? fields.dimension
+        comparePrevious.value = Boolean(report.query.comparison)
+      }
     }
     if (hasGrant('dataset.read')) {
       datasets.value = (await api<Page<Dataset>>('/datasets')).items
@@ -111,7 +117,8 @@ async function runQuery() {
     const grant = user.value?.grants['dataset.query']
     const scope: Scope = grant === 'own' ? 'own' : 'department'
     const response = await api<QueryResult & { id: number }>('/queries', {
-      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...fields, scope, context_id: contextId.value }),
+      method: 'POST', body: JSON.stringify({ dataset_id: form.dataset_id, ...fields, scope, context_id: contextId.value,
+        compare_previous: comparePrevious.value && fields.dimension !== 'day' }),
     })
     if (reportId.value && result.value && queryId.value) {
       ElMessage.info('本次查询将替换工作稿关联的数据。')
@@ -199,6 +206,7 @@ async function save() {
             <div><label>维度</label><el-select v-model="fields.dimension" aria-label="维度" :disabled="planning || querying"><el-option v-for="item in dimensionList" :key="item.code" :value="item.code" :label="item.name" /></el-select></div></div>
           <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" :disabled="planning || querying" /></div>
             <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" :disabled="planning || querying" /></div></div>
+          <el-checkbox v-if="fields.dimension !== 'day'" v-model="comparePrevious" :disabled="querying || planning">对照上一期</el-checkbox>
           <el-button :loading="querying" :disabled="planning || generating || !fields.start || !fields.end || !metricList.length" @click="runQuery"><Play :size="15" /> 运行指标查询</el-button>
         </template>
       </template>

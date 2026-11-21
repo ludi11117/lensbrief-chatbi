@@ -105,6 +105,7 @@ erDiagram
 - 运营和数据审核者可以在自己有权访问的发布版本下留下反馈。选择版本后，可用地址栏链接分享该版本。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
 - 报告预览和查询详情可导出当前已授权的聚合结果。历史版本的文件名带版本号，数值保留原精度，CSV 用 UTF-8 编码和 BOM，便于用 Excel 打开。 [Metabase 查询结果导出](https://github.com/metabase/metabase/blob/master/docs/questions/exporting-results.md)
 - 按日查询展示趋势折线，缺失的中间日期留作断点，并保留可展开的原始数值表。 [Chart.js 折线图](https://github.com/chartjs/Chart.js/blob/master/docs/charts/line.md)
+- 渠道、产品或部门分组可勾选「对照上一期」。对照期是紧邻本期前方的等长区间，两期使用相同权限和统计口径。明细与 CSV 均保留两期数据和日期，缺失组留空。 [Metabase 趋势对照](https://github.com/metabase/metabase/blob/master/docs/questions/visualizations/trend.md)
 
 ### 场景知识包与分析上下文
 
@@ -155,7 +156,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入一条测试报告。
 
-本地实测通过 pytest 50 项、Vitest 6 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
+本地实测通过 pytest 54 项、Vitest 7 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 
@@ -197,7 +198,7 @@ Windows 可加 `--temp-dir D:\CodexWork\temp`。脚本用正式迁移创建独�
 
 - 单机本地开发环境。SQLite 写入串行，列表使用 `limit/offset`，并发写入可能使记录在连续翻页时移动。表单采用最后一次保存为准。
 - 演示账号和默认 JWT 密钥用于本地启动，服务默认绑定回环地址。JWT 保存在浏览器会话存储中。
-- 数据目录包含一个合成销售数据集。离线解析仅覆盖预设指标、分组维度与明确日期，同环比、相对日期和自由文本过滤暂未实现。知识条目按所选包和指标匹配，旧知识版本保存在引用它的查询和报告快照中。
+- 数据目录包含一个合成销售数据集。离线解析覆盖预设指标、分组维度和明确日期。时间对照通过表单开启，只取紧邻上一期。按年同比、自然月环比、相对日期和自由文本过滤暂未实现。旧知识版本保存在引用它的查询和报告快照中。
 - 存储层实现本地目录并预留 S3 兼容适配点。未提交的上传和软删除报告所关联的文件会保留，当前无清理任务。
 - PDF 使用浏览器预览组件。真实模型需要供应商配置，离线 Mock 可复现草稿。线上模型调用需要相应的密钥和网络。
 - FastAPI 的 Swagger UI 默认从 CDN 加载界面资源，OpenAPI JSON 可直接离线读取。

@@ -35,6 +35,11 @@ class MetricValue(BaseModel):
     label: str
     value: int | float | None
 
+class QueryComparison(BaseModel):
+    start: str
+    end: str
+    rows: list[MetricValue]
+
 class KnowledgePackRow(BaseModel):
     id: int
     dataset_id: int
@@ -73,6 +78,7 @@ class QuerySnapshot(BaseModel):
     end: str
     rows: list[MetricValue]
     knowledge: KnowledgeSnapshot | None = None
+    comparison: QueryComparison | None = None
 
 class QueryResult(QuerySnapshot):
     id: int

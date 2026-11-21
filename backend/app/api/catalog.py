@@ -129,12 +129,21 @@ def query(payload: QueryInput, session: Db, actor: Identity):
         raise HTTPException(422, "该数据集不支持所选指标或维度。")
     field = DIMENSION_COLUMNS[payload.dimension]
     agg = METRIC_COLUMNS[payload.metric].label("value")
+    start = payload.start
+    if payload.compare_previous:
+        start -= timedelta(days=(payload.end - payload.start).days + 1)
     stmt = select(field.label("label"), agg).select_from(sales.join(departments)).where(
-        sales.c.dataset_id == payload.dataset_id, sales.c.day.between(payload.start.isoformat(), payload.end.isoformat()),
+        sales.c.dataset_id == payload.dataset_id, sales.c.day.between(start.isoformat(), payload.end.isoformat()),
         scope_filter(sales, scope, actor)).group_by(field)
+    if payload.compare_previous:
+        current_period = (sales.c.day >= payload.start.isoformat()).label("is_current")
+        stmt = stmt.add_columns(current_period).group_by(current_period)
     stmt = stmt.order_by(field) if payload.dimension == "day" else stmt.order_by(agg.desc(), field)
+    rows, previous_rows = [], []
     try:
-        rows = [{"label": label, "value": value} for label, value in session.execute(stmt)]
+        for row in session.execute(stmt):
+            period_rows = rows if not payload.compare_previous or row.is_current else previous_rows
+            period_rows.append({"label": row.label, "value": row.value})
     except Exception:
         session.rollback()
         save_query(session, actor, payload, scope, "error", started)
@@ -143,6 +152,9 @@ def query(payload: QueryInput, session: Db, actor: Identity):
               "dimension_name": dimension.name, "dimension_code": dimension.code,
               "scope": scope, "start": payload.start.isoformat(),
               "end": payload.end.isoformat(), "rows": rows}
+    if payload.compare_previous:
+        result["comparison"] = {"start": start.isoformat(),
+                                "end": (payload.start - timedelta(days=1)).isoformat(), "rows": previous_rows}
     if context is not None:
         result["knowledge"] = knowledge_snapshot(session, context, metric.id)
     query_id = save_query(session, actor, payload, scope, "ok", started, result)
@@ -208,6 +220,8 @@ def mock_draft(goal, result):
     else:
         summary = "所选范围内没有可分析的数据。"
     content = f"观察期\n{window}\n\n主要发现\n{summary}\n\n统计口径\n{result['metric_note']}"
+    if comparison := result.get("comparison"):
+        content += f"\n\n对照期\n{comparison['start']} 至 {comparison['end']}，返回 {len(comparison['rows'])} 组。"
     if knowledge := result.get("knowledge"):
         references = "\n".join(f"• {item['title']}：{item['content']}" for item in knowledge["items"])
         content += f"\n\n知识参考 · {knowledge['title']} v{knowledge['revision']}\n{references}"
