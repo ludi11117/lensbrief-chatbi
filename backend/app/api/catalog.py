@@ -140,7 +140,8 @@ def query(payload: QueryInput, session: Db, actor: Identity):
         save_query(session, actor, payload, scope, "error", started)
         raise
     result = {"metric_name": metric.name, "metric_note": metric.description, "unit": metric.unit,
-              "dimension_name": dimension.name, "scope": scope, "start": payload.start.isoformat(),
+              "dimension_name": dimension.name, "dimension_code": dimension.code,
+              "scope": scope, "start": payload.start.isoformat(),
               "end": payload.end.isoformat(), "rows": rows}
     if context is not None:
         result["knowledge"] = knowledge_snapshot(session, context, metric.id)

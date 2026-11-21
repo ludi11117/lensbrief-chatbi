@@ -135,6 +135,8 @@ nav a.active svg { color: #9db2ff }
 .bar-track { min-width: 0; background: #eef2ff; height: 8px; border-radius: 10px }
 .bar { height: 8px; background: linear-gradient(90deg, #4164e8, #7893ff); border-radius: 10px }
 .chart-note { font-size: .8rem; color: var(--muted); margin-top: 16px; line-height: 1.6 }
+.daily-trend { position: relative; height: 230px; min-width: 0 }
+.daily-values summary { cursor: pointer; color: var(--blue); font-size: .85rem; margin: 8px 0 }
 .version-label { color: #2847b0; background: #eef2ff }
 .preview-title { font-size: 1.47rem; margin-top: 12px; overflow-wrap: anywhere }
 .preview-description { margin-top: 8px; color: var(--muted); line-height: 1.6; overflow-wrap: anywhere }

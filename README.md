@@ -103,6 +103,7 @@ erDiagram
 - 附件预览和下载校验报告或指定版本的权限。支持 PNG、JPEG、未加密 PDF 和 UTF-8 CSV。CSV 返回总行数，展示前 100 行。
 - 运营和数据审核者可以在自己有权访问的发布版本下留下反馈。选择版本后，可用地址栏链接分享该版本。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
 - 报告预览和查询详情可导出当前已授权的聚合结果。历史版本的文件名带版本号，数值保留原精度，CSV 用 UTF-8 编码和 BOM，便于用 Excel 打开。 [Metabase 查询结果导出](https://github.com/metabase/metabase/blob/master/docs/questions/exporting-results.md)
+- 按日查询展示趋势折线，缺失的中间日期留作断点，并保留可展开的原始数值表。 [Chart.js 折线图](https://github.com/chartjs/Chart.js/blob/master/docs/charts/line.md)
 
 ### 场景知识包与分析上下文
 

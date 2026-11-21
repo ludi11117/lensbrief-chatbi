@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Download } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { downloadBlob, resultCsv } from '../download'
 import { scopeText, type QueryResult } from '../types'
 const props = defineProps<{ result: QueryResult; exportName?: string }>()
+const DailyTrend = defineAsyncComponent(() => import('./DailyTrend.vue'))
+const isDaily = computed(() => props.result.dimension_code === 'day'
+  || (!props.result.dimension_code && props.result.dimension_name === '日期'))
 const highest = computed(() => Math.max(1, ...props.result.rows.map(row => row.value ?? 0)))
 const formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 })
 function exportRows() {
@@ -18,6 +21,16 @@ function exportRows() {
       <el-button v-if="result.rows.length" size="small" @click="exportRows"><Download :size="15" /> 导出 CSV</el-button>
     </div>
     <el-empty v-if="!result.rows.length" description="该范围暂无结果" :image-size="65" />
+    <template v-else-if="isDaily">
+      <DailyTrend :result="result" />
+      <details class="daily-values">
+        <summary>查看日期明细</summary>
+        <el-table :data="result.rows" max-height="330">
+          <el-table-column prop="label" label="日期" />
+          <el-table-column prop="value" :label="result.metric_name + ' / ' + result.unit" />
+        </el-table>
+      </details>
+    </template>
     <div v-else-if="result.rows.length <= 8" class="chart-rows">
       <div v-for="row in result.rows" :key="row.label" class="chart-row">
         <span>{{ row.label }}</span><div class="bar-track"><div class="bar" :style="{ width: (row.value ?? 0) / highest * 100 + '%' }"></div></div>

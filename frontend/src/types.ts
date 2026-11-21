@@ -15,6 +15,7 @@ export interface QueryResult {
   id?: number; metric_name: string; dimension_name: string; metric_note: string; unit: string;
   scope: Scope; start: string; end: string; rows: { label: string; value: number | null }[]
   knowledge?: KnowledgeSnapshot | null
+  dimension_code?: string | null
 }
 export interface QueryPlan {
   dataset_id: number; context_id: number | null; scope: Scope

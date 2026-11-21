@@ -67,6 +67,7 @@ class QuerySnapshot(BaseModel):
     metric_note: str
     unit: str
     dimension_name: str
+    dimension_code: str | None = None
     scope: Scope
     start: str
     end: str
