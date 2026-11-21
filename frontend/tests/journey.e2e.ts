@@ -164,3 +164,17 @@ test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => 
   await expect(page.getByText(/报告已被更新/)).toBeVisible()
   await expect(page.getByLabel('报告标题')).toHaveValue('本地改稿，尚未提交')
 })
+
+test('Swagger 界面在拦截外部资源后仍能加载', async ({ page, baseURL }) => {
+  const origin = new URL(baseURL!).origin
+  const externalRequests: string[] = []
+  await page.route('**/*', route => {
+    if (new URL(route.request().url()).origin === origin) return route.continue()
+    externalRequests.push(route.request().url())
+    return route.abort()
+  })
+  await page.goto('/api/docs')
+  await expect(page.getByRole('heading', { name: /LensBrief ChatBI/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Authorize/ }).first()).toBeVisible()
+  expect(externalRequests).toEqual([])
+})

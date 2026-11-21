@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +20,7 @@ def create_app(settings: Settings | None = None, storage: ObjectStorage | None =
         raise ValueError("LENSBRIEF_DRAFT_MODE must be mock or llm")
     if settings.planner_mode not in {"rules", "llm"}:
         raise ValueError("LENSBRIEF_PLANNER_MODE must be rules or llm")
-    app = FastAPI(title="LensBrief ChatBI", version="1.0.0", docs_url="/api/docs",
+    app = FastAPI(title="LensBrief ChatBI", version="1.0.0", docs_url=None,
                   redoc_url=None, openapi_url="/api/openapi.json", swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect")
     app.state.settings = settings
     app.state.engine = sqlite_engine(settings.database)
@@ -28,6 +29,20 @@ def create_app(settings: Settings | None = None, storage: ObjectStorage | None =
 
     for module in (identity, reports, files, catalog, workspaces):
         app.include_router(module.router, prefix="/api")
+
+    @app.get("/api/docs", include_in_schema=False)
+    def swagger():
+        assets = "/assets/swagger-ui"
+        return get_swagger_ui_html(
+            openapi_url=app.openapi_url, title=f"{app.title} · API",
+            oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+            swagger_js_url=f"{assets}/swagger-ui-bundle.js", swagger_css_url=f"{assets}/swagger-ui.css",
+            swagger_favicon_url=f"{assets}/favicon-32x32.png", swagger_ui_parameters={"validatorUrl": None},
+        )
+
+    @app.get("/api/docs/oauth2-redirect", include_in_schema=False)
+    def swagger_redirect():
+        return get_swagger_ui_oauth2_redirect_html()
 
     @app.get("/api/health", tags=["运行状态"])
     def health():
