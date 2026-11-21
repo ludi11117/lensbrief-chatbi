@@ -59,6 +59,22 @@ def test_recent_days_use_latest_visible_data_day(app, client, auth, query_body):
         assert "最新数据日 2026-10-31" in result["notes"][0]
     assert plan(client, auth("overseas"), "最近7天按渠道看成交额").json()["end"] == "2026-11-07"
 
+def test_period_comparison_can_be_planned_inherited_and_cleared(client, auth):
+    headers = auth()
+    work = context(client, headers)
+    parsed = plan(client, headers, "最近7天按产品看成交额并对照上一期", work)
+    assert parsed.status_code == 200, parsed.text
+    assert parsed.json()["compare_previous"] is True
+    fields = {name: value for name, value in parsed.json().items() if name not in ("notes", "source")}
+    assert client.post("/api/queries", headers=headers, json=fields).status_code == 201
+    inherited = plan(client, headers, "改看退款率", work).json()
+    assert inherited["compare_previous"] is True
+    assert "上一期对照" in inherited["notes"][0]
+    assert plan(client, headers, "改为取消对照", work).json()["compare_previous"] is False
+    assert plan(client, headers, "改按日", work).json()["compare_previous"] is False
+    daily = plan(client, headers, "最近7天按日看销售额并对照上一期")
+    assert daily.status_code == 422 and "分组" in daily.json()["detail"]
+
 @pytest.mark.parametrize("question", [
     "按渠道查看销售额和订单量", "同比分析上月各渠道销售额", "看看销售情况", "按产品比较官网和电商平台销售额",
     "2026-10-15 至 2026-10-01 按渠道看销售额", "2026-13-01 按渠道看销售额",

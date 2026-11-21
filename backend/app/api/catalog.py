@@ -5,7 +5,7 @@ from time import perf_counter_ns
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import func, insert, or_, select
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from ..auth import Db, Denied, Identity, SCOPE_RANK, scope_filter
 from ..db import begin_write, json_dump, utc_now
@@ -102,7 +102,10 @@ def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Id
         raise HTTPException(502, "模型解析暂不可用。可以改用明确的指标和维度，或手动选择。") from None
     if plan["metric"] not in known_metrics or plan["dimension"] not in known_dimensions:
         raise HTTPException(422, "该数据集不支持解析出的指标或维度。")
-    return {**plan, "dataset_id": payload.dataset_id, "context_id": payload.context_id, "scope": scope, "source": source}
+    try:
+        return QueryPlan(**plan, dataset_id=payload.dataset_id, context_id=payload.context_id, scope=scope, source=source)
+    except ValidationError as exc:
+        raise HTTPException(422, exc.errors()[0]["msg"].removeprefix("Value error, ")) from None
 
 def save_query(session, actor, payload, scope, status, started, result=None):
     query_id = session.execute(insert(query_logs).values(

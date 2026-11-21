@@ -147,8 +147,9 @@ function changeContext(value: number | null) {
   result.value = null
   queryId.value = null
 }
-function applyPlan({ metric, dimension, start, end, channel }: QueryPlan) {
+function applyPlan({ metric, dimension, start, end, channel, compare_previous }: QueryPlan) {
   Object.assign(fields, { metric, dimension, start, end, channel })
+  comparePrevious.value = compare_previous
 }
 function restoreConditions() {
   if (!snapshotFilters.value) return
