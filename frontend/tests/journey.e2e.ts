@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 test('登录、草稿、附件、发布、版本对比和回滚、403、查询记录', async ({ page }) => {
-  const title = '面试演示 ' + Date.now()
+  const screenshotDir = process.env.LENSBRIEF_SCREENSHOT_DIR
+  const title = screenshotDir ? '十月渠道销售复盘' : '面试演示 ' + Date.now()
   const revised = title + ' · 更新'
   await page.goto('/login')
   await page.getByRole('button', { name: '华东分析师' }).click()
@@ -58,8 +60,9 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   const resultFile = await exported
   expect(resultFile.suggestedFilename()).toBe('report-' + new URL(reportUrl).pathname.split('/').pop() + '-v1.csv')
   expect(await readFile(await resultFile.path(), 'utf8')).toContain('"渠道","销售额 (元)"')
-  if (process.env.LENSBRIEF_SCREENSHOT_DIR) {
-    await page.screenshot({ path: process.env.LENSBRIEF_SCREENSHOT_DIR + '/lensbrief-report.png', fullPage: true })
+  if (screenshotDir) {
+    await page.setViewportSize({ width: 1440, height: 1300 })
+    await page.screenshot({ path: join(screenshotDir, 'lensbrief-report.png'), fullPage: true, animations: 'disabled' })
   }
   await page.getByRole('link', { name: /渠道样例.csv/ }).click()
   await expect(page.getByRole('heading', { name: '文件预览' })).toBeVisible()

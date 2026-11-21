@@ -18,3 +18,11 @@
 追问性能时，可对照 [原始样本](benchmarks/samples.csv) 和 [查询计划](benchmarks/summary.json)。
 
 可把开始时的「新建报告」换成「分析上下文」里的「新建报告」。演示前创建「十月渠道复盘」上下文并选择「渠道销售复盘」知识包。运行销售额查询后可展开「知识包 v1」查看口径，也可追问「改按产品」，核对沿用的指标和日期。回到上下文可查看两次执行记录。
+
+README 的截图由浏览器测试生成。用演示数据库启动工作台，在 `frontend` 目录运行以下命令：
+
+```sh
+LENSBRIEF_SCREENSHOT_DIR="$PWD/../docs/media" npm run test:browser
+```
+
+PowerShell 可先执行 `$env:LENSBRIEF_SCREENSHOT_DIR = Join-Path (Resolve-Path ..) 'docs/media'`，再运行 `npm run test:browser`。
