@@ -3,9 +3,9 @@ uvicorn==0.41.0
 httpx==0.28.1
 SQLAlchemy==2.0.48
 alembic==1.18.4
-PyJWT==2.11.0
+PyJWT==2.15.0
 pwdlib[argon2]==0.3.0
-python-multipart==0.0.22
-pypdf==6.7.5
-Pillow==12.1.1
-pytest==9.0.2
+python-multipart==0.0.31
+pypdf==6.21.4
+Pillow==13.0.0
+pytest==9.0.3

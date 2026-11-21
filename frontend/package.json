@@ -13,7 +13,7 @@
     "chart.js": "4.5.1",
     "element-plus": "2.13.2",
     "lucide-vue-next": "0.468.0",
-    "vue": "3.5.26",
+    "vue": "3.5.46",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
@@ -24,9 +24,15 @@
     "jsdom": "26.1.0",
     "swagger-ui-dist": "5.34.1",
     "typescript": "5.9.3",
-    "vite": "6.4.3",
+    "vite": "6.4.6",
     "vite-plugin-static-copy": "3.1.6",
-    "vitest": "3.2.4",
+    "vitest": "5.1.1",
     "vue-tsc": "3.2.4"
+  },
+  "overrides": {
+    "js-beautify": {
+      "glob": "14.0.2",
+      "editorconfig": { "minimatch": "11.0.5" }
+    }
   }
 }
