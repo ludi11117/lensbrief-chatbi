@@ -59,6 +59,6 @@ export interface QueryDetail extends Pick<QueryLog, 'id' | 'user_id' | 'metric' 
 }
 export const statusText: Record<Status, string> = { draft: '草稿', published: '已发布', archived: '已归档' }
 export const scopeText: Record<Scope, string> = { own: '本人', department: '部门', all: '全部' }
-export const dateText = (value: string) => new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+export const dateText = (value: string, timeZone?: string) => new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone,
 }).format(new Date(value))

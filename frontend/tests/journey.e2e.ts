@@ -97,6 +97,7 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByRole('button', { name: '保存报告' }).click()
   await expect(page.getByRole('link', { name: /渠道样例.csv/ })).toBeVisible()
   await page.getByRole('link', { name: '查询记录' }).click()
+  await expect(page.getByRole('columnheader', { name: '执行时间（UTC）' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'analyst' }).first()).toBeVisible()
   await page.getByRole('spinbutton', { name: '用户 ID' }).fill('1')
   await page.getByRole('button', { name: '筛选' }).click()

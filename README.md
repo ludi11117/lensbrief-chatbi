@@ -174,7 +174,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入测试数据。
 
-本地实测通过 pytest 73 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 74 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。迁移测试将含已发布报告、查询与附件的测试库切回初版结构，再升级并校验原数据仍可读取。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

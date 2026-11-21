@@ -46,8 +46,8 @@ watch(contextId, filter)
     <div class="section-head"><h2>执行历史</h2><span class="muted">{{ total }} 条记录</span></div>
     <form class="toolbar" @submit.prevent="filter">
       <el-input-number v-model="userId" :min="1" :controls="false" placeholder="用户 ID" aria-label="用户 ID" />
-      <label class="date-filter">从 <input v-model="start" type="date" aria-label="查询开始日期" class="date-input" /></label>
-      <label class="date-filter">至 <input v-model="end" type="date" aria-label="查询结束日期" class="date-input" /></label>
+      <label class="date-filter">从 <input v-model="start" type="date" aria-label="查询开始日期（UTC）" class="date-input" /></label>
+      <label class="date-filter">至 <input v-model="end" type="date" aria-label="查询结束日期（UTC）" class="date-input" /></label>
       <el-button native-type="submit">筛选</el-button><el-button text @click="reset">重置</el-button>
     </form>
     <el-alert v-if="error" type="error" :title="error" :closable="false" />
@@ -59,7 +59,7 @@ watch(contextId, filter)
       <el-table-column label="范围" width="75"><template #default="{ row }">{{ scopeText[row.scope as Scope] }}</template></el-table-column>
       <el-table-column label="执行状态" width="105"><template #default="{ row }"><el-tag :type="row.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[row.status] ?? row.status }}</el-tag></template></el-table-column>
       <el-table-column label="结果行数" prop="row_count" width="100" />
-      <el-table-column label="执行时间" min-width="168"><template #default="{ row }">{{ dateText(row.created_at) }}</template></el-table-column>
+      <el-table-column label="执行时间（UTC）" min-width="168"><template #default="{ row }">{{ dateText(row.created_at, 'UTC') }}</template></el-table-column>
       <el-table-column label="操作" width="82"><template #default="{ row }"><el-button text type="primary" @click="open(row.id)">详情</el-button></template></el-table-column>
     </el-table>
     <div class="pagination"><el-pagination v-model:current-page="current" :page-size="15" :total="total" background layout="prev, pager, next" @current-change="load" /></div>
