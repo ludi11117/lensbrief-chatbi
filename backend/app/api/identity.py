@@ -6,7 +6,7 @@ from sqlalchemy import delete, insert, select
 from ..auth import Actor, Db, Identity, audit, dummy_hash, load_actor, passwords, token_for
 from ..db import as_dict, begin_write
 from ..models import audit_logs, departments, role_permissions, roles, user_roles, users
-from ..outputs import LoginResult
+from ..outputs import AccessOverview, AuditEntry, LoginResult, Page
 from ..schemas import Login, RoleUpdate
 from .common import Limit, Offset, count, page, take
 
@@ -25,7 +25,7 @@ def login(payload: Login, request: Request, session: Db):
 def profile(actor: Identity):
     return actor
 
-@router.get("/access")
+@router.get("/access", response_model=AccessOverview)
 def access(session: Db, actor: Identity):
     actor.scope("user.manage", "user")
     people = [as_dict(row) for row in session.execute(
@@ -56,7 +56,7 @@ def assign_roles(user_id: int, payload: RoleUpdate, session: Db, actor: Identity
     session.commit()
     return {"user_id": user_id, "roles": sorted(set(payload.roles))}
 
-@router.get("/audit")
+@router.get("/audit", response_model=Page[AuditEntry])
 def logs(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0,
          action: str | None = Query(default=None, min_length=1, max_length=64)):
     actor.scope("audit.read", "audit")

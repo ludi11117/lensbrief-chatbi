@@ -12,7 +12,7 @@ from ..auth import Db, Denied, Identity, SCOPE_RANK, scope_filter
 from ..db import begin_write, json_dump, utc_now
 from ..model_client import ModelConfigurationError, ModelResponseError, complete_json
 from ..models import datasets, departments, dimensions, metrics, query_logs, sales, users
-from ..outputs import GeneratedDraft, Page, QueryLog, QueryPlan, QueryResult
+from ..outputs import CatalogRow, Dimension, GeneratedDraft, Metric, Page, QueryDetail, QueryLog, QueryPlan, QueryResult
 from ..planning import MissingAxes, PlanError, resolve_model_axes, resolve_question
 from ..schemas import DraftInput, DraftOutput, QueryInput, QueryPlanInput
 from .common import Limit, Offset, count, page, take
@@ -26,7 +26,7 @@ METRIC_COLUMNS = {"gmv": func.sum(sales.c.revenue), "orders": func.sum(sales.c.o
                                             func.nullif(func.sum(sales.c.orders), 0), 2)}
 DRAFT_SCHEMA = TypeAdapter(DraftOutput)
 
-@router.get("/datasets")
+@router.get("/datasets", response_model=Page[CatalogRow])
 def list_datasets(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
     actor.scope("dataset.read", "dataset")
     return page(session, select(datasets).order_by(datasets.c.id), count(datasets), limit, offset)
@@ -37,11 +37,11 @@ def list_catalog(session, actor, table, dataset_id, limit, offset):
     condition = table.c.dataset_id == dataset_id
     return page(session, select(table).where(condition).order_by(table.c.id), count(table, condition), limit, offset)
 
-@router.get("/datasets/{dataset_id}/metrics")
+@router.get("/datasets/{dataset_id}/metrics", response_model=Page[Metric])
 def list_metrics(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
     return list_catalog(session, actor, metrics, dataset_id, limit, offset)
 
-@router.get("/datasets/{dataset_id}/dimensions")
+@router.get("/datasets/{dataset_id}/dimensions", response_model=Page[Dimension], response_model_exclude_unset=True)
 def list_dimensions(dataset_id: int, session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0,
                     scope: Literal["own", "department"] | None = None):
     catalog = list_catalog(session, actor, dimensions, dataset_id, limit, offset)
@@ -225,7 +225,7 @@ def get_query(session, actor, query_id):
         raise Denied(actor.id, "query.read", "query", query_id)
     return query
 
-@router.get("/queries/{query_id}")
+@router.get("/queries/{query_id}", response_model=QueryDetail, response_model_exclude_unset=True)
 def query_detail(query_id: int, session: Db, actor: Identity):
     record = get_query(session, actor, query_id)
     record["filters"] = json.loads(record.pop("filters_json"))

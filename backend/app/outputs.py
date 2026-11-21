@@ -1,4 +1,4 @@
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
@@ -19,6 +19,47 @@ class LoginResult(BaseModel):
     access_token: str
     token_type: Literal["bearer"]
     user: Actor
+
+class AccessUser(BaseModel):
+    id: int
+    username: str
+    name: str
+    department: str
+    roles: list[str]
+
+class AccessRole(BaseModel):
+    id: int
+    code: str
+    name: str
+    grants: dict[str, Scope]
+
+class AccessOverview(BaseModel):
+    users: list[AccessUser]
+    roles: list[AccessRole]
+
+class AuditEntry(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    action: str
+    resource: str
+    resource_id: int | None
+    detail: dict[str, Any]
+    created_at: str
+
+class CatalogRow(BaseModel):
+    id: int
+    code: str
+    name: str
+    description: str
+
+class Metric(CatalogRow):
+    dataset_id: int
+    unit: str
+
+class Dimension(CatalogRow):
+    dataset_id: int
+    values: list[str] | None = None
 
 class Asset(BaseModel):
     id: int
@@ -85,16 +126,15 @@ class QueryResult(QuerySnapshot):
     id: int
 
 class QueryPlan(QueryInput):
+    scope: Literal["own", "department"]
     notes: list[str]
     source: Literal["rules", "llm"]
 
-class QueryLog(BaseModel):
+class QueryRecord(BaseModel):
     id: int
     user_id: int
     department_id: int
     dataset_id: int
-    username: str
-    dataset_name: str
     metric: str
     dimension: str
     scope: Scope
@@ -102,6 +142,15 @@ class QueryLog(BaseModel):
     elapsed_ms: int
     row_count: int
     created_at: str
+
+class QueryLog(QueryRecord):
+    username: str
+    dataset_name: str
+
+class QueryDetail(QueryRecord):
+    context_id: int | None = None
+    filters: dict[str, Any]
+    result: QuerySnapshot | None
 
 class ReportRow(BaseModel):
     id: int

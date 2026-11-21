@@ -25,6 +25,25 @@ def test_unauthenticated_401_and_bad_credentials(client):
     assert client.get("/api/reports").status_code == 401
     assert client.post("/api/auth/login", json={"username": "analyst", "password": "invalid"}).status_code == 401
 
+def test_openapi_describes_catalog_query_detail_and_audit_responses(client):
+    schema = client.get("/api/openapi.json").json()
+    components = schema["components"]["schemas"]
+    cases = [
+        ("/datasets", True, {"code", "name", "description"}),
+        ("/datasets/{dataset_id}/metrics", True, {"dataset_id", "unit"}),
+        ("/datasets/{dataset_id}/dimensions", True, {"dataset_id", "values"}),
+        ("/queries/{query_id}", False, {"filters", "result", "context_id"}),
+        ("/audit", True, {"action", "resource_id", "detail"}),
+        ("/access", False, {"users", "roles"}),
+    ]
+    for route, paginated, fields in cases:
+        output = schema["paths"]["/api" + route]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+        properties = components[output["$ref"].rsplit("/", 1)[-1]]["properties"]
+        if paginated:
+            row = properties["items"]["items"]["$ref"].rsplit("/", 1)[-1]
+            properties = components[row]["properties"]
+        assert fields <= properties.keys(), route
+
 def test_same_department_and_cross_department_403_is_audited(client, auth):
     assert client.get("/api/reports/1", headers=auth("manager")).status_code == 200
     assert client.get("/api/reports/2", headers=auth("manager")).status_code == 403

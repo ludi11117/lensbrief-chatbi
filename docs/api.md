@@ -31,7 +31,7 @@
 | `POST /queries/plan` | 将提问解析成可确认的指标、维度、日期和范围 | dataset.query，上下文限本人 |
 | `POST /queries` | 执行聚合并写查询日志，返回查询 ID 和结果，HTTP 201 | dataset.query |
 | `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end` | query.read，上下文筛选限本人 |
-| `GET /queries/{id}` | 查询条件及结果，适用当前有效数据范围 | query.read |
+| `GET /queries/{id}` | 查询条件及结果，适用当前有效数据范围。上下文 ID 仅向执行者返回 | query.read |
 | `POST /drafts/generate` | 按已有聚合生成草稿，返回草稿字段和模式 | report.create、query.read |
 | `GET /knowledge/packs` | 知识包分页，可按 `dataset_id` 筛选 | dataset.read |
 | `GET /knowledge/packs/{id}` | 查看当前知识包版本与条目 | dataset.read |
