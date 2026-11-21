@@ -47,7 +47,7 @@
 | `GET /assets/{id}/csv` | CSV 表头、前 100 行与总行数，可传 `report_id` 与 `version` | 所有者或关联报告权限 |
 | `GET /access` | 查看用户、角色与权限范围 | user.manage |
 | `PUT /access/users/{id}/roles` | 替换目标用户角色，接收 `{"roles":["analyst"]}` | user.manage |
-| `GET /audit` | 操作审计分页 | audit.read |
+| `GET /audit` | 操作审计分页，可用 `action=access.denied` 按动作筛选 | audit.read |
 
 ### 认证和查询示例
 

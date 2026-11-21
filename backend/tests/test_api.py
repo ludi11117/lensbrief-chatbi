@@ -30,8 +30,14 @@ def test_same_department_and_cross_department_403_is_audited(client, auth):
     assert client.get("/api/reports/2", headers=auth("manager")).status_code == 403
     assert client.post("/api/reports/2/publish", headers=auth("analyst")).status_code == 403
     assert client.get("/api/access", headers=auth()).status_code == 403
-    audit = client.get("/api/audit", headers=auth("admin")).json()["items"]
-    assert {row["detail"]["permission"] for row in audit if row["action"] == "access.denied"} >= {
+    assert client.post("/api/reports/1/publish", headers=auth()).status_code == 201
+    admin = auth("admin")
+    assert client.get("/api/audit", headers=auth()).status_code == 403
+    unfiltered = client.get("/api/audit", headers=admin).json()
+    denied = client.get("/api/audit", headers=admin, params={"action": "access.denied"}).json()
+    assert denied["total"] < unfiltered["total"]
+    assert all(row["action"] == "access.denied" for row in denied["items"])
+    assert {row["detail"]["permission"] for row in denied["items"]} >= {
         "report.read", "report.publish", "user.manage"
     }
     assert client.get("/api/reports/2", headers=auth("admin")).status_code == 200

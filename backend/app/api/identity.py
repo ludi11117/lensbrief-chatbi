@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy import delete, insert, select
 
 from ..auth import Actor, Db, Identity, audit, dummy_hash, load_actor, passwords, token_for
@@ -57,11 +57,13 @@ def assign_roles(user_id: int, payload: RoleUpdate, session: Db, actor: Identity
     return {"user_id": user_id, "roles": sorted(set(payload.roles))}
 
 @router.get("/audit")
-def logs(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
+def logs(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0,
+         action: str | None = Query(default=None, min_length=1, max_length=64)):
     actor.scope("audit.read", "audit")
-    statement = select(audit_logs, users.c.username).join(users).order_by(audit_logs.c.created_at.desc(),
-                                                                         audit_logs.c.id.desc())
-    result = page(session, statement, count(audit_logs), limit, offset)
+    conditions = [] if action is None else [audit_logs.c.action == action]
+    statement = (select(audit_logs, users.c.username).join(users).where(*conditions)
+                 .order_by(audit_logs.c.created_at.desc(), audit_logs.c.id.desc()))
+    result = page(session, statement, count(audit_logs, *conditions), limit, offset)
     for item in result["items"]:
         item["detail"] = json.loads(item.pop("detail_json"))
     return result

@@ -106,6 +106,17 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.goto(reportUrl)
   expect((await forbidden).status()).toBe(403)
   await expect(page.getByText(/403 · 没有权限/)).toBeVisible()
+  await page.getByRole('button', { name: /林遥/ }).click()
+  await page.getByText('退出登录').click()
+  await page.getByRole('button', { name: '管理员', exact: true }).click()
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await page.getByRole('link', { name: '权限管理' }).click()
+  const filtered = page.waitForResponse(response => response.url().includes('/api/audit?')
+    && new URL(response.url()).searchParams.get('action') === 'access.denied')
+  await page.getByText('只看越权记录', { exact: true }).click()
+  expect((await filtered).status()).toBe(200)
+  await expect(page.getByRole('row').filter({ hasText: 'report #' + reportUrl.split('/').pop() })
+    .filter({ hasText: 'overseas' }).getByRole('cell', { name: 'report.read', exact: true })).toBeVisible()
 })
 
 test('个人上下文引用知识包并保留查询历史', async ({ page }) => {

@@ -6,12 +6,14 @@ import { hasGrant, user } from '../auth'
 import { dateText, scopeText, type Page, type Scope } from '../types'
 type Person = { id: number; name: string; username: string; department: string; roles: string[] }
 type Role = { id: number; code: string; name: string; grants: Record<string, Scope> }
-type Audit = { id: number; username: string; action: string; resource: string; resource_id: number | null; created_at: string }
+type Audit = { id: number; username: string; action: string; resource: string; resource_id: number | null; created_at: string; detail: { permission?: string } }
 const people = ref<Person[]>([])
 const roles = ref<Role[]>([])
 const logs = ref<Audit[]>([])
 const auditPage = ref(1)
 const auditTotal = ref(0)
+const deniedOnly = ref(false)
+const loadingAudit = ref(false)
 const editing = ref<Person>()
 const choices = ref<string[]>([])
 const dialog = ref(false)
@@ -25,11 +27,14 @@ async function load() {
   } catch (err) { error.value = errorText(err) }
 }
 async function loadAudit() {
+  loadingAudit.value = true
   try {
-    const result = await api<Page<Audit>>('/audit' + params({ limit: 10, offset: (auditPage.value - 1) * 10 }))
+    const result = await api<Page<Audit>>('/audit' + params({ limit: 10, offset: (auditPage.value - 1) * 10,
+      action: deniedOnly.value ? 'access.denied' : undefined }))
     logs.value = result.items; auditTotal.value = result.total
-  } catch (err) { error.value = errorText(err) }
+  } catch (err) { error.value = errorText(err) } finally { loadingAudit.value = false }
 }
+function filterAudit() { auditPage.value = 1; void loadAudit() }
 function edit(person: Person) { editing.value = person; choices.value = [...person.roles]; dialog.value = true }
 async function save() {
   if (!editing.value) return
@@ -64,13 +69,18 @@ onMounted(load)
       </el-collapse-item></el-collapse>
     </section>
     <section v-if="hasGrant('audit.read')" class="panel">
-      <div class="section-head"><h2>操作审计</h2><span class="muted">{{ auditTotal }} 条记录</span></div>
-      <el-table :data="logs" empty-text="暂无审计记录">
-        <el-table-column prop="username" label="用户" min-width="100" /><el-table-column prop="action" label="动作" min-width="165" />
+      <div class="section-head">
+        <h2>操作审计</h2>
+        <div class="inline"><el-checkbox v-model="deniedOnly" :disabled="loadingAudit" @change="filterAudit">只看越权记录</el-checkbox>
+          <span class="muted">{{ auditTotal }} 条记录</span></div>
+      </div>
+      <el-table v-loading="loadingAudit" :data="logs" empty-text="暂无审计记录">
+        <el-table-column prop="username" label="用户" min-width="100" /><el-table-column prop="action" label="动作" min-width="145" />
         <el-table-column label="资源" min-width="125"><template #default="{ row }">{{ row.resource }} {{ row.resource_id ? '#' + row.resource_id : '' }}</template></el-table-column>
+        <el-table-column prop="detail.permission" label="被拒绝的权限" min-width="145" />
         <el-table-column label="时间" min-width="168"><template #default="{ row }">{{ dateText(row.created_at) }}</template></el-table-column>
       </el-table>
-      <div class="pagination"><el-pagination v-model:current-page="auditPage" :page-size="10" :total="auditTotal" background layout="prev, pager, next" @current-change="loadAudit" /></div>
+      <div class="pagination"><el-pagination v-model:current-page="auditPage" :disabled="loadingAudit" :page-size="10" :total="auditTotal" background layout="prev, pager, next" @current-change="loadAudit" /></div>
     </section>
   </div>
   <el-dialog v-model="dialog" :title="'分配角色 · ' + editing?.name" width="min(500px, 94vw)">

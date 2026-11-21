@@ -107,7 +107,7 @@ erDiagram
 - 网页保存和发布时用 `If-Match` 核对工作稿。若其他操作者已保存，服务器返回 412，编辑页面保留本地输入。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
 - 版本对比展示字段旧值、新值和正文逐行增删。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
-- JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。
+- JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。管理员可筛选越权记录，核对账号、资源与被拒绝的权限。
 - 查询先按本人、部门或全部过滤事实表，再做聚合。查询记录还要满足当前有效的数据范围。报告可引用所有者的本人查询或归属部门的部门查询，避免通过部门报告曝光全范围快照。
 - 编辑报告时可选择自己上传过的附件，并在多份报告中复用同一文件。附件预览和下载校验报告或指定版本的权限。支持 PNG、JPEG、未加密 PDF 和 UTF-8 CSV。CSV 返回总行数，展示前 100 行。
 - 运营和数据审核者可以在自己有权访问的发布版本下留下反馈。选择版本后，可用地址栏链接分享该版本。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
