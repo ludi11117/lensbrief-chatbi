@@ -38,7 +38,7 @@ def test_scoped_default_window_and_implicit_year(client, auth):
     assert plan(client, auth("admin"), "2026年10月按渠道看GMV").json()["scope"] == "department"
 
 @pytest.mark.parametrize("question", [
-    "按渠道查看销售额和订单量", "同比分析上月各渠道销售额", "看看销售情况", "按产品看官网销售额",
+    "按渠道查看销售额和订单量", "同比分析上月各渠道销售额", "看看销售情况", "按产品比较官网和电商平台销售额",
     "2026-10-15 至 2026-10-01 按渠道看销售额", "2026-13-01 按渠道看销售额",
     "2026年11月2日按渠道看销售额", "2026年9月和10月按渠道看销售额",
 ])
@@ -118,3 +118,17 @@ def test_deterministic_rules_still_work_without_model_in_llm_mode(client, auth, 
     assert plan(client, auth(), "按渠道看退款率和销售额").status_code == 422
     assert plan(client, auth(), "2026-09-31 看各款成交情况").status_code == 422
     assert seen == []
+
+def test_channel_from_authorized_catalog_is_preserved_or_cleared_in_followups(client, auth, query_body):
+    headers = auth()
+    context_id = context(client, headers)
+    parsed = plan(client, headers, "十月按产品只看官网成交额", context_id)
+    assert parsed.status_code == 200, parsed.text
+    assert parsed.json()["channel"] == "官网"
+    ran = client.post("/api/queries", headers=headers, json={
+        **query_body, "channel": "官网", "context_id": context_id,
+    })
+    assert ran.status_code == 201
+    assert plan(client, headers, "改看退款率", context_id).json()["channel"] == "官网"
+    assert plan(client, headers, "改成全部渠道", context_id).json()["channel"] is None
+    assert plan(client, headers, "按产品只看抖音成交额", context_id).status_code == 422

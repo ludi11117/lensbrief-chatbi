@@ -24,6 +24,7 @@ export interface QueryPlan {
   dataset_id: number; context_id: number | null; scope: Scope
   metric: string; dimension: string; start: string; end: string; notes: string[]
   source: 'rules' | 'llm'
+  channel: string | null
 }
 export interface ReportRow {
   id: number; title: string; description: string; status: Status; owner_id: number

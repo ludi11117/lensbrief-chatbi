@@ -129,9 +129,9 @@ function changeContext(value: number | null) {
   queryId.value = null
   hasPendingPlan.value = false
 }
-function applyPlan({ metric, dimension, start, end }: QueryPlan) {
+function applyPlan({ metric, dimension, start, end, channel }: QueryPlan) {
   hasPendingPlan.value = Boolean(result.value)
-  Object.assign(fields, { metric, dimension, start, end })
+  Object.assign(fields, { metric, dimension, start, end, channel })
 }
 async function runQuery() {
   querying.value = true

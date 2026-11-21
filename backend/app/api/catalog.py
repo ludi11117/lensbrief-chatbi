@@ -82,11 +82,12 @@ def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Id
         metrics.c.dataset_id == payload.dataset_id, metrics.c.code.in_(METRIC_COLUMNS))).all())
     known_dimensions = dict(session.execute(select(dimensions.c.code, dimensions.c.name).where(
         dimensions.c.dataset_id == payload.dataset_id, dimensions.c.code.in_(DIMENSION_COLUMNS))).all())
+    available_channels = channel_values(session, payload.dataset_id, actor, scope)
     session.rollback()
     source = "rules"
     try:
         try:
-            plan = resolve_question(payload.question, available, previous)
+            plan = resolve_question(payload.question, available, previous, available_channels)
         except MissingAxes as exc:
             settings = request.app.state.settings
             if settings.planner_mode != "llm":
