@@ -7,7 +7,7 @@ import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
 import QuestionPlanner from '../components/QuestionPlanner.vue'
-import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
+import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string }
 const route = useRoute()
@@ -55,11 +55,45 @@ async function refreshCatalog(id: number | null) {
     metricList.value = metrics.items
     dimensionList.value = dimensions.items
     contexts.value = saved?.items ?? []
-    if (!metrics.items.some(item => item.code === fields.metric)) fields.metric = metrics.items[0]?.code ?? ''
-    if (!dimensions.items.some(item => item.code === fields.dimension)) fields.dimension = dimensions.items[0]?.code ?? ''
+    fields.metric = metrics.items.find(item => item.name === result.value?.metric_name)?.code
+      ?? metrics.items.find(item => item.code === fields.metric)?.code ?? metrics.items[0]?.code ?? ''
+    fields.dimension = dimensions.items.find(item => item.name === result.value?.dimension_name)?.code
+      ?? dimensions.items.find(item => item.code === fields.dimension)?.code ?? dimensions.items[0]?.code ?? ''
   } catch (err) { if (catalogRequest === seq) error.value = errorText(err) }
 }
 watch(() => form.dataset_id, refreshCatalog)
+
+function hydrateResult(snapshot: QueryResult, id: number | null) {
+  result.value = snapshot
+  queryId.value = id
+  fields.start = snapshot.start
+  fields.end = snapshot.end
+  fields.dimension = snapshot.dimension_code ?? fields.dimension
+  comparePrevious.value = Boolean(snapshot.comparison)
+}
+
+async function loadNewReportSource() {
+  const sourceId = typeof route.query.fromQuery === 'string' ? Number(route.query.fromQuery) : 0
+  if (Number.isSafeInteger(sourceId) && sourceId > 0) {
+    const source = await api<QueryDetail>('/queries/' + sourceId)
+    if (!source.result || source.user_id !== user.value?.id || source.scope === 'all') {
+      throw new Error('请选择本人查询中可用于报告的成功结果。')
+    }
+    form.dataset_id = source.dataset_id
+    fields.metric = source.metric
+    fields.dimension = source.dimension
+    hydrateResult(source.result, source.id)
+    return
+  }
+  const fromContext = typeof route.query.context === 'string' && Number(route.query.context)
+  if (fromContext) {
+    const saved = await api<AnalysisContext>('/contexts/' + fromContext)
+    if (saved.archived) throw new Error('请先恢复已归档的分析上下文。')
+    form.dataset_id = saved.dataset_id
+    contextId.value = saved.id
+    goal.value = saved.objective
+  } else form.dataset_id = datasets.value[0]?.id ?? null
+}
 
 onMounted(async () => {
   waiting.value = true
@@ -71,27 +105,11 @@ onMounted(async () => {
         dataset_id: report.dataset_id })
       media.value = report.assets
       editTag.value = report.etag
-      result.value = report.query
-      queryId.value = report.query_id
-      if (report.query) {
-        fields.start = report.query.start
-        fields.end = report.query.end
-        fields.dimension = report.query.dimension_code ?? fields.dimension
-        comparePrevious.value = Boolean(report.query.comparison)
-      }
+      if (report.query) hydrateResult(report.query, report.query_id)
     }
     if (hasGrant('dataset.read')) {
       datasets.value = (await api<Page<Dataset>>('/datasets')).items
-      if (!reportId.value) {
-        const fromContext = typeof route.query.context === 'string' && Number(route.query.context)
-        if (fromContext) {
-          const saved = await api<AnalysisContext>('/contexts/' + fromContext)
-          if (saved.archived) { error.value = '请先恢复已归档的分析上下文。'; blocked.value = true; return }
-          form.dataset_id = saved.dataset_id
-          contextId.value = saved.id
-          goal.value = saved.objective
-        } else form.dataset_id = datasets.value[0]?.id ?? null
-      }
+      if (!reportId.value) await loadNewReportSource()
     }
   } catch (err) { error.value = errorText(err); blocked.value = true } finally { waiting.value = false }
 })
@@ -214,6 +232,7 @@ async function save() {
         </template>
       </template>
       <template v-if="result">
+        <p v-if="queryId" class="muted">来源 · 查询记录 #{{ queryId }}</p>
         <p v-if="hasPendingPlan" class="muted">下方仍为上次查询结果。运行新查询后会更新关联数据。</p>
         <QueryPreview :result="result" :export-name="queryId ? 'query-' + queryId : undefined" />
         <template v-if="hasGrant('report.create')">

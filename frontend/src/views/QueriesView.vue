@@ -2,8 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, errorText, params } from '../api'
+import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
-import { dateText, scopeText, type Page, type QueryLog, type QueryResult, type Scope } from '../types'
+import { dateText, scopeText, type Page, type QueryDetail, type QueryLog, type Scope } from '../types'
 
 const route = useRoute()
 const contextId = computed(() => typeof route.query.context === 'string' ? route.query.context : undefined)
@@ -16,7 +17,7 @@ const end = ref('')
 const error = ref('')
 const busy = ref(false)
 const dialog = ref(false)
-const detail = ref<{ id: number; result: QueryResult | null; filters: unknown }>()
+const detail = ref<QueryDetail>()
 const labels: Record<string, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
 let seq = 0
 async function load() {
@@ -66,5 +67,9 @@ watch(contextId, filter)
   <el-dialog v-model="dialog" :title="'查询记录 #' + detail?.id" width="min(720px, 94vw)">
     <QueryPreview v-if="detail?.result" :result="detail.result" :export-name="'query-' + detail.id" />
     <h3>查询参数</h3><pre class="json-box">{{ JSON.stringify(detail?.filters, null, 2) }}</pre>
+    <template #footer>
+      <RouterLink v-if="detail?.result && detail.user_id === user?.id && detail.scope !== 'all' && hasGrant('report.create')"
+                  class="text-link" :to="{ name: 'create', query: { fromQuery: detail.id } }">用此结果新建报告</RouterLink>
+    </template>
   </el-dialog>
 </template>

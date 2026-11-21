@@ -47,6 +47,11 @@ export interface QueryLog {
   id: number; user_id: number; username: string; dataset_name: string; metric: string; dimension: string
   scope: Scope; status: string; row_count: number; elapsed_ms: number; created_at: string
 }
+export interface QueryDetail extends Pick<QueryLog, 'id' | 'user_id' | 'metric' | 'dimension' | 'scope'> {
+  dataset_id: number
+  result: QueryResult | null
+  filters: Record<string, unknown>
+}
 export const statusText: Record<Status, string> = { draft: '草稿', published: '已发布', archived: '已归档' }
 export const scopeText: Record<Scope, string> = { own: '本人', department: '部门', all: '全部' }
 export const dateText = (value: string) => new Intl.DateTimeFormat('zh-CN', {

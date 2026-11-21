@@ -136,6 +136,18 @@ test('个人上下文引用知识包并保留查询历史', async ({ page }) => 
   await page.getByRole('link', { name: '分析上下文' }).click()
   await row.getByRole('link', { name: '查询历史' }).click()
   await expect(page.getByText('4 条记录')).toBeVisible()
+  await page.getByRole('button', { name: '详情', exact: true }).first().click()
+  await page.getByRole('link', { name: '用此结果新建报告' }).click()
+  await expect(page.getByText(/来源 · 查询记录 #/)).toBeVisible()
+  await expect(page.getByText('对照期 2026-10-08 至 2026-10-14')).toBeVisible()
+  await expect(page.getByLabel('开始日期')).toHaveValue('2026-10-15')
+  await page.getByRole('button', { name: '生成报告草稿' }).click()
+  await expect(page.getByLabel('正文')).toHaveValue(/对照期/)
+  await page.getByRole('button', { name: '保存报告' }).click()
+  await expect(page.getByRole('heading', { name: '产品 · 销售额分析', exact: true }).first()).toBeVisible()
+  await page.getByRole('link', { name: '分析上下文' }).click()
+  await row.getByRole('link', { name: '查询历史' }).click()
+  await expect(page.getByText('4 条记录')).toBeVisible()
 })
 
 test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => {
