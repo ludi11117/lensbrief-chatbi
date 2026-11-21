@@ -238,6 +238,20 @@ test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => 
   await page.getByRole('button', { name: '保存报告' }).click()
   await expect(page.getByText(/报告已被更新/)).toBeVisible()
   await expect(page.getByLabel('报告标题')).toHaveValue('本地改稿，尚未提交')
+  await page.getByRole('link', { name: '返回详情' }).click()
+  await page.getByRole('button', { name: '发布报告' }).click()
+  await page.getByRole('button', { name: '确认', exact: true }).click()
+  await expect(page.getByText('当前发布 v1')).toBeVisible()
+  const update = await page.request.put('/api' + detailPath, {
+    headers: { Authorization: 'Bearer ' + manager.access_token },
+    data: { title: '主管的最新更新' },
+  })
+  expect(update.ok()).toBeTruthy()
+  await page.getByRole('button', { name: '归档', exact: true }).click()
+  await page.getByRole('button', { name: '确认', exact: true }).click()
+  await expect(page.getByText(/页面已加载最新工作稿/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: '主管的最新更新', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: '归档', exact: true })).toBeVisible()
 })
 
 test('Swagger 界面在拦截外部资源后仍能加载', async ({ page, baseURL }) => {

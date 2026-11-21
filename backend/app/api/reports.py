@@ -83,9 +83,13 @@ def report_tag(report, snapshot):
     state = [report["id"], report["updated_at"], report["status"], report["current_version"], snapshot]
     return '"' + sha256(json_dump(state).encode()).hexdigest() + '"'
 
-def require_matching_report(report, snapshot, if_match):
+def require_matching_report(session, report, actor, if_match, snapshot=None):
     if if_match is None or if_match.strip() == "*":
         return
+    if report["current_version"] and not can_edit_working_report(report, actor):
+        snapshot = json.loads(get_version(session, report["id"], report["current_version"])["snapshot_json"])
+    elif snapshot is None:
+        snapshot = working_snapshot(session, report)
     if report_tag(report, snapshot) not in {value.strip() for value in if_match.split(",")}:
         raise HTTPException(412, "报告已被更新。当前输入保留，请核对最新工作稿后再提交。")
 
@@ -176,7 +180,7 @@ def edit(report_id: int, payload: ReportInput, response: Response, session: Db, 
     report = get_report(session, actor, report_id, "report.edit")
     require_state(report, {"draft", "published"})
     existing = working_snapshot(session, report)
-    require_matching_report(report, existing, if_match)
+    require_matching_report(session, report, actor, if_match, existing)
     validate_work(session, actor, payload, report["owner_id"], report["department_id"],
                   existing["asset_ids"], report["query_id"])
     session.execute(update(reports).where(reports.c.id == report_id)
@@ -187,9 +191,10 @@ def edit(report_id: int, payload: ReportInput, response: Response, session: Db, 
     return report_response(response, session, take(session, reports, report_id, "报告"), actor)
 
 @router.delete("/{report_id}", status_code=204)
-def remove(report_id: int, session: Db, actor: Identity):
+def remove(report_id: int, session: Db, actor: Identity, if_match: str | None = Header(None)):
     begin_write(session)
-    get_report(session, actor, report_id, "report.delete")
+    report = get_report(session, actor, report_id, "report.delete")
+    require_matching_report(session, report, actor, if_match)
     now = utc_now()
     session.execute(update(reports).where(reports.c.id == report_id).values(deleted_at=now, updated_at=now))
     audit(session, actor.id, "report.delete", "report", report_id)
@@ -224,22 +229,24 @@ def publish(report_id: int, session: Db, actor: Identity, if_match: str | None =
     report = get_report(session, actor, report_id, "report.publish")
     require_state(report, {"draft", "published"})
     snapshot = working_snapshot(session, report)
-    require_matching_report(report, snapshot, if_match)
+    require_matching_report(session, report, actor, if_match, snapshot)
     return write_version(session, actor, report, snapshot)
 
 @router.post("/{report_id}/rollback/{number}", status_code=201, response_model=PublishResult)
-def rollback(report_id: int, number: int, session: Db, actor: Identity):
+def rollback(report_id: int, number: int, session: Db, actor: Identity, if_match: str | None = Header(None)):
     begin_write(session)
     report = get_report(session, actor, report_id, "report.rollback")
     require_state(report, {"published"})
+    require_matching_report(session, report, actor, if_match)
     previous = get_version(session, report_id, number)
     return write_version(session, actor, report, json.loads(previous["snapshot_json"]), number)
 
 @router.post("/{report_id}/archive")
-def archive(report_id: int, session: Db, actor: Identity):
+def archive(report_id: int, session: Db, actor: Identity, if_match: str | None = Header(None)):
     begin_write(session)
     report = get_report(session, actor, report_id, "report.archive")
     require_state(report, {"published"})
+    require_matching_report(session, report, actor, if_match)
     session.execute(update(reports).where(reports.c.id == report_id).values(status="archived", updated_at=utc_now()))
     audit(session, actor.id, "report.archive", "report", report_id)
     session.commit()

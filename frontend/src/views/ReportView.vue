@@ -121,6 +121,7 @@ async function compare() {
   catch (err) { compareError.value = errorText(err) }
 }
 async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', number?: number) {
+  const headers = report.value ? { 'If-Match': report.value.etag } : undefined
   const prompts = {
     publish: '发布会将当前工作稿保存为一个新版本。',
     archive: '归档后显示最后发布的版本，仍可查看历史版本。归档后会关闭编辑和发布。',
@@ -133,20 +134,23 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
   error.value = ''
   try {
     if (action === 'remove') {
-      await api(path, { method: 'DELETE' })
+      await api(path, { method: 'DELETE', headers })
       ElMessage.success('报告已删除')
       await router.push('/reports')
       return
     }
     const suffix = action === 'rollback' ? 'rollback/' + number : action
-    await api(path + '/' + suffix, {
-      method: 'POST', headers: action === 'publish' && report.value ? { 'If-Match': report.value.etag } : undefined,
-    })
+    await api(path + '/' + suffix, { method: 'POST', headers })
     ElMessage.success({ publish: '已发布新版本', archive: '报告已归档', rollback: '已回滚并发布新版本' }[action])
     historyPage.value = 1
     await selectVersion(null)
     await load()
-  } catch (err) { error.value = errorText(err) } finally { busy.value = false }
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 412) {
+      await load()
+      if (!error.value) error.value = '报告已被更新。页面已加载最新工作稿，请核对后再操作。'
+    } else error.value = errorText(err)
+  } finally { busy.value = false }
 }
 </script>
 <template>
