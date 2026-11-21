@@ -30,9 +30,7 @@
     "vue-tsc": "3.2.4"
   },
   "overrides": {
-    "js-beautify": {
-      "glob": "14.0.2",
-      "editorconfig": { "minimatch": "11.0.5" }
-    }
+    "glob": "14.0.2",
+    "minimatch": "11.0.5"
   }
 }
