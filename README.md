@@ -103,6 +103,7 @@ erDiagram
 ### 版本、权限和文件
 
 - 首次发布将草稿转为已发布。编辑已发布报告只更新工作稿，再次发布才产生新版本。归档后保留可读历史，删除为软删除。
+- 网页保存和发布时用 `If-Match` 核对工作稿。若其他操作者已保存，服务器返回 412，编辑页面保留本地输入。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
 - 版本对比展示字段旧值、新值和正文逐行增删。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
 - JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。
@@ -162,7 +163,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入一条测试报告。
 
-本地实测通过 pytest 54 项、Vitest 7 项与 Playwright 2 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行两条浏览器流程。
+本地实测通过 pytest 56 项、Vitest 7 项与 Playwright 3 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 
@@ -202,7 +203,7 @@ Windows 可加 `--temp-dir D:\CodexWork\temp`。脚本用正式迁移创建独�
 
 ## 已知限制
 
-- 单机本地开发环境。SQLite 写入串行，列表使用 `limit/offset`，并发写入可能使记录在连续翻页时移动。表单采用最后一次保存为准。
+- 单机本地开发环境。SQLite 写入串行，列表使用 `limit/offset`，并发写入可能使记录在连续翻页时移动。对旧 API 调用方，省略 `If-Match` 时仍允许无条件更新。
 - 演示账号和默认 JWT 密钥用于本地启动，服务默认绑定回环地址。JWT 保存在浏览器会话存储中。
 - 数据目录包含一个合成销售数据集。离线解析覆盖预设指标、分组维度和明确日期。时间对照通过表单开启，只取紧邻上一期。按年同比、自然月环比、相对日期和自由文本过滤暂未实现。旧知识版本保存在引用它的查询和报告快照中。
 - 存储层实现本地目录并预留 S3 兼容适配点。未提交的上传和软删除报告所关联的文件会保留，当前无清理任务。

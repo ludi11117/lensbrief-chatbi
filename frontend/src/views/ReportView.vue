@@ -111,7 +111,9 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       return
     }
     const suffix = action === 'rollback' ? 'rollback/' + number : action
-    await api(path + '/' + suffix, { method: 'POST' })
+    await api(path + '/' + suffix, {
+      method: 'POST', headers: action === 'publish' && report.value ? { 'If-Match': report.value.etag } : undefined,
+    })
     ElMessage.success({ publish: '已发布新版本', archive: '报告已归档', rollback: '已回滚并发布新版本' }[action])
     historyPage.value = 1
     await selectVersion(null)

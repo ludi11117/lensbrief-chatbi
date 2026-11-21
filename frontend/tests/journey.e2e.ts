@@ -137,3 +137,30 @@ test('个人上下文引用知识包并保留查询历史', async ({ page }) => 
   await row.getByRole('link', { name: '查询历史' }).click()
   await expect(page.getByText('4 条记录')).toBeVisible()
 })
+
+test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByRole('button', { name: '华东分析师' }).click()
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await page.getByRole('button', { name: '新建报告' }).click()
+  await page.getByLabel('报告标题').fill('并发编辑演示')
+  await page.getByRole('button', { name: '保存报告' }).click()
+  await page.getByRole('button', { name: '编辑报告' }).click()
+  await expect(page.getByLabel('报告标题')).toHaveValue('并发编辑演示')
+  const detailPath = new URL(page.url()).pathname.replace(/\/edit$/, '')
+  await page.getByLabel('报告标题').fill('本地改稿，尚未提交')
+
+  const login = await page.request.post('/api/auth/login', {
+    data: { username: 'manager', password: 'LensBrief2026!' },
+  })
+  expect(login.ok()).toBeTruthy()
+  const manager = await login.json()
+  const saved = await page.request.put('/api' + detailPath, {
+    headers: { Authorization: 'Bearer ' + manager.access_token },
+    data: { title: '主管已保存的新稿' },
+  })
+  expect(saved.ok()).toBeTruthy()
+  await page.getByRole('button', { name: '保存报告' }).click()
+  await expect(page.getByText(/报告已被更新/)).toBeVisible()
+  await expect(page.getByLabel('报告标题')).toHaveValue('本地改稿，尚未提交')
+})

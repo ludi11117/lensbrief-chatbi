@@ -130,6 +130,7 @@ class Report(ReportSnapshot):
     current_version: int | None
     created_at: str
     updated_at: str
+    etag: str
     has_unpublished_changes: bool
     allowed: dict[str, bool]
 

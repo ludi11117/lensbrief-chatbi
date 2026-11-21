@@ -1,8 +1,9 @@
 import json
 from difflib import unified_diff
+from hashlib import sha256
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 from sqlalchemy import delete, insert, select, update
 
 from ..auth import Db, Denied, Identity, audit, scope_filter
@@ -75,6 +76,16 @@ def attachable_scope(report, actor, action):
     return scope == "all" or (scope == "own" and report["owner_id"] == actor.id) or (
         scope == "department" and report["department_id"] == actor.department_id)
 
+def report_tag(report, snapshot):
+    state = [report["id"], report["updated_at"], report["status"], report["current_version"], snapshot]
+    return '"' + sha256(json_dump(state).encode()).hexdigest() + '"'
+
+def require_matching_report(report, snapshot, if_match):
+    if if_match is None or if_match.strip() == "*":
+        return
+    if report_tag(report, snapshot) not in {value.strip() for value in if_match.split(",")}:
+        raise HTTPException(412, "报告已被更新。当前输入保留，请核对最新工作稿后再提交。")
+
 def present(session, report, actor):
     number = report["current_version"]
     published = json.loads(get_version(session, report["id"], number)["snapshot_json"]) if number else None
@@ -82,7 +93,7 @@ def present(session, report, actor):
     active = working_snapshot(session, report) if editable or not published else published
     return {**{key: report[key] for key in ("id", "owner_id", "department_id", "status", "current_version",
                                             "created_at", "updated_at")},
-            **active, "assets": media_metadata(session, active["asset_ids"]),
+            **active, "assets": media_metadata(session, active["asset_ids"]), "etag": report_tag(report, active),
             "has_unpublished_changes": bool(editable and published and active != published),
             "allowed": {action: attachable_scope(report, actor, f"report.{action}") for action in
                         ("edit", "delete", "publish", "rollback", "archive")}}
@@ -110,7 +121,7 @@ def list_reports(session: Db, actor: Identity, limit: Limit = 10, offset: Offset
     return page(session, statement, total, limit, offset)
 
 @router.post("", status_code=201, response_model=Report)
-def create_report(payload: ReportInput, session: Db, actor: Identity):
+def create_report(payload: ReportInput, response: Response, session: Db, actor: Identity):
     actor.scope("report.create", "report")
     begin_write(session)
     validate_work(session, actor, payload, actor.id, actor.department_id, [], None)
@@ -121,18 +132,26 @@ def create_report(payload: ReportInput, session: Db, actor: Identity):
     set_media(session, new_id, sorted(set(payload.asset_ids)))
     audit(session, actor.id, "report.create", "report", new_id)
     session.commit()
-    return present(session, take(session, reports, new_id, "报告"), actor)
+    return report_response(response, session, take(session, reports, new_id, "报告"), actor)
 
 @router.get("/{report_id}", response_model=Report)
-def detail(report_id: int, session: Db, actor: Identity):
-    return present(session, get_report(session, actor, report_id, "report.read"), actor)
+def detail(report_id: int, response: Response, session: Db, actor: Identity):
+    return report_response(response, session, get_report(session, actor, report_id, "report.read"), actor)
+
+def report_response(response, session, report, actor):
+    data = present(session, report, actor)
+    response.headers["ETag"] = data["etag"]
+    response.headers["Cache-Control"] = "private, no-store"
+    return data
 
 @router.put("/{report_id}", response_model=Report)
-def edit(report_id: int, payload: ReportInput, session: Db, actor: Identity):
+def edit(report_id: int, payload: ReportInput, response: Response, session: Db, actor: Identity,
+         if_match: str | None = Header(None)):
     begin_write(session)
     report = get_report(session, actor, report_id, "report.edit")
     require_state(report, {"draft", "published"})
     existing = working_snapshot(session, report)
+    require_matching_report(report, existing, if_match)
     validate_work(session, actor, payload, report["owner_id"], report["department_id"],
                   existing["asset_ids"], report["query_id"])
     session.execute(update(reports).where(reports.c.id == report_id)
@@ -140,7 +159,7 @@ def edit(report_id: int, payload: ReportInput, session: Db, actor: Identity):
     set_media(session, report_id, sorted(set(payload.asset_ids)))
     audit(session, actor.id, "report.edit", "report", report_id)
     session.commit()
-    return present(session, take(session, reports, report_id, "报告"), actor)
+    return report_response(response, session, take(session, reports, report_id, "报告"), actor)
 
 @router.delete("/{report_id}", status_code=204)
 def remove(report_id: int, session: Db, actor: Identity):
@@ -175,11 +194,13 @@ def write_version(session, actor, report, snapshot, restored_from=None):
     return {"report_id": report_id, "number": number, "status": "published", "restored_from": restored_from}
 
 @router.post("/{report_id}/publish", status_code=201, response_model=PublishResult)
-def publish(report_id: int, session: Db, actor: Identity):
+def publish(report_id: int, session: Db, actor: Identity, if_match: str | None = Header(None)):
     begin_write(session)
     report = get_report(session, actor, report_id, "report.publish")
     require_state(report, {"draft", "published"})
-    return write_version(session, actor, report, working_snapshot(session, report))
+    snapshot = working_snapshot(session, report)
+    require_matching_report(report, snapshot, if_match)
+    return write_version(session, actor, report, snapshot)
 
 @router.post("/{report_id}/rollback/{number}", status_code=201, response_model=PublishResult)
 def rollback(report_id: int, number: int, session: Db, actor: Identity):

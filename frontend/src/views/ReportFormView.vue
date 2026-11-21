@@ -13,6 +13,7 @@ interface CatalogEntry { code: string; name: string; description: string }
 const route = useRoute()
 const router = useRouter()
 const reportId = computed(() => route.params.id ? Number(route.params.id) : null)
+const editTag = ref<string>()
 const form = reactive({ title: '', description: '', content: '', dataset_id: null as number | null })
 const goal = ref('')
 const media = ref<Asset[]>([])
@@ -69,6 +70,7 @@ onMounted(async () => {
       Object.assign(form, { title: report.title, description: report.description, content: report.content,
         dataset_id: report.dataset_id })
       media.value = report.assets
+      editTag.value = report.etag
       result.value = report.query
       queryId.value = report.query_id
       if (report.query) {
@@ -160,6 +162,7 @@ async function save() {
   try {
     const report = await api<Report>(reportId.value ? '/reports/' + reportId.value : '/reports', {
       method: reportId.value ? 'PUT' : 'POST',
+      headers: editTag.value ? { 'If-Match': editTag.value } : undefined,
       body: JSON.stringify({ ...form, query_id: queryId.value, asset_ids: media.value.map(file => file.id) }),
     })
     ElMessage.success('工作稿已保存')

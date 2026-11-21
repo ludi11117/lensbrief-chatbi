@@ -33,6 +33,7 @@ export interface Snapshot {
 }
 export interface Report extends Snapshot {
   id: number; status: Status; current_version: number | null; updated_at: string
+  etag: string
   has_unpublished_changes: boolean; allowed: Record<string, boolean>
 }
 export interface VersionRow { number: number; created_at: string; restored_from: number | null; created_by_name: string }
