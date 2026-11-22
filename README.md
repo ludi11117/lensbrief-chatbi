@@ -112,7 +112,7 @@ erDiagram
 - JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。管理员可筛选越权记录，核对账号、资源与被拒绝的权限。
 - 查询先按本人、部门或全部过滤事实表，再做聚合。查询记录还要满足当前有效的数据范围。报告表单允许有部门权限的账号选择本人或部门范围，解析、渠道目录和指标执行使用同一范围。报告可引用所有者的本人查询或归属部门的部门查询。
 - 编辑报告时可选择自己上传过的附件，并在多份报告中复用同一文件。附件预览和下载校验报告或指定版本的权限。支持 PNG、JPEG、未加密 PDF 和 UTF-8 CSV。CSV 预览仅传输文件信息、前 100 行和总行数，下载时再传输完整文件。
-- 运营和数据审核者可以在自己有权访问的发布版本下留下反馈。选择版本后，可用地址栏链接分享该版本。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
+- 运营和数据审核者可以在自己有权访问的发布版本下留下反馈，并复制固定版本链接。后续发布或回滚会生成独立版本，原反馈依然挂在讨论当时的版本上。归档后保留历史反馈。 [Gitea 的修订讨论实现](https://github.com/go-gitea/gitea/blob/main/services/pull/review.go)
 - 报告预览和查询详情可导出当前已授权的聚合结果。历史版本的文件名带版本号，数值保留原精度，CSV 用 UTF-8 编码和 BOM，便于用 Excel 打开。 [Metabase 查询结果导出](https://github.com/metabase/metabase/blob/master/docs/questions/exporting-results.md)
 - 报告预览中的「打印报告」可打印当前所选版本，也可在浏览器中另存为 PDF。版面保留正文、指标、附件名称和知识口径，打印区域只包含报告正文区。
 - 按日查询展示趋势折线，缺失的中间日期留作断点，并保留可展开的原始数值表。 [Chart.js 折线图](https://github.com/chartjs/Chart.js/blob/master/docs/charts/line.md)

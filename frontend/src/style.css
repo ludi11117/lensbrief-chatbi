@@ -114,6 +114,7 @@ nav a.active svg { color: #9db2ff }
 .page-alert { margin: 14px 0 }
 .editor-grid, .detail-grid { display: grid; align-items: start; gap: 16px; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr) }
 .detail-grid { grid-template-columns: minmax(0, 1.9fr) minmax(285px, 1fr) }
+.printable-report .section-head .inline { flex-wrap: wrap }
 .form-panel { display: flex; flex-direction: column; gap: 10px }
 .form-panel h2 { margin-bottom: 5px }
 .form-panel label, .login-form label { display: block; color: #344461; font-size: .9rem; font-weight: 600; margin-top: 5px }

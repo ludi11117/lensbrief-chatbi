@@ -67,6 +67,14 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await expect(page.getByText('恢复自 v1')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'v3 版本反馈' })).toBeVisible()
   await expect(page.getByText('核对渠道归类', { exact: true })).toHaveCount(0)
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('Clipboard unavailable')) },
+    })
+  })
+  await page.getByRole('button', { name: '复制版本链接' }).click()
+  await expect(page).toHaveURL(reportUrl + '?version=3')
   await page.getByRole('button', { name: /^v1\s/ }).click()
   await expect(page).toHaveURL(reportUrl + '?version=1')
   await page.reload()
@@ -83,6 +91,14 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   if (printDir) {
     await page.pdf({ path: join(printDir, 'lensbrief-report.pdf'), preferCSSPageSize: true, printBackground: true })
   }
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (text: string) => { document.body.dataset.copiedVersion = text } },
+    })
+  })
+  await page.getByRole('button', { name: '复制版本链接' }).click()
+  await expect(page.locator('body')).toHaveAttribute('data-copied-version', reportUrl + '?version=1')
   await page.emulateMedia({ media: 'print' })
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: '版本记录' })).toBeHidden()

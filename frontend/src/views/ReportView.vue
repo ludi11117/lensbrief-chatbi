@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FileText, GitCompareArrows, History, Printer } from '@lucide/vue'
+import { FileText, GitCompareArrows, History, Link2, Printer } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, api, errorText, params } from '../api'
@@ -104,6 +104,17 @@ function selectVersion(number: number | null) {
   return router.replace({ query: { ...route.query, version: number?.toString() } })
 }
 
+async function copyVersionLink(number: number) {
+  const { href } = router.resolve({ name: 'report', params: { id }, query: { version: number } })
+  try {
+    await navigator.clipboard.writeText(new URL(href, window.location.origin).href)
+    ElMessage.success('已复制 v' + number + ' 的链接')
+  } catch {
+    await selectVersion(number)
+    ElMessage.info('可从地址栏复制此版本链接。')
+  }
+}
+
 async function preview(number: number | null) {
   const request = ++previewRequest
   if (number === null) { selected.value = null; selectedNumber.value = null; return }
@@ -174,6 +185,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
         <article ref="printable" class="panel printable-report">
           <div class="section-head print-hide"><h2>报告预览</h2>
             <div class="inline"><span class="version-label">{{ previewLabel }}</span>
+              <el-button v-if="discussionVersion" size="small" @click="copyVersionLink(discussionVersion)"><Link2 :size="15" /> 复制版本链接</el-button>
               <el-button size="small" @click="printReport"><Printer :size="15" /> 打印报告</el-button></div>
           </div>
           <div class="print-heading"><span>LensBrief · {{ discussionVersion ? 'v' + discussionVersion : '工作稿' }}</span><h1>{{ showing.title }}</h1></div>
