@@ -4,7 +4,7 @@ from hashlib import sha256
 from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
-from sqlalchemy import and_, delete, func, insert, or_, select, update
+from sqlalchemy import and_, delete, func, insert, or_, select, text, update
 
 from ..auth import Db, Denied, Identity, audit, scope_filter
 from ..db import as_dict, begin_write, json_dump, utc_now
@@ -172,17 +172,23 @@ def create_report(payload: ReportInput, response: Response, session: Db, actor: 
                              created_at=now, updated_at=now)).inserted_primary_key[0]
     set_media(session, new_id, sorted(set(payload.asset_ids)))
     audit(session, actor.id, "report.create", "report", new_id)
-    session.commit()
-    return report_response(response, session, take(session, reports, new_id, "报告"), actor)
+    return saved_report_response(response, session, new_id, actor)
 
 @router.get("/{report_id}", response_model=Report)
 def detail(report_id: int, response: Response, session: Db, actor: Identity):
+    # sqlite3's legacy transaction mode does not start a read transaction for SELECT.
+    session.execute(text("BEGIN"))
     return report_response(response, session, get_report(session, actor, report_id, "report.read"), actor)
 
 def report_response(response, session, report, actor):
     data = present(session, report, actor)
     response.headers["ETag"] = data["etag"]
     response.headers["Cache-Control"] = "private, no-store"
+    return data
+
+def saved_report_response(response, session, report_id, actor):
+    data = report_response(response, session, take(session, reports, report_id, "报告"), actor)
+    session.commit()
     return data
 
 @router.put("/{report_id}", response_model=Report)
@@ -199,8 +205,7 @@ def edit(report_id: int, payload: ReportInput, response: Response, session: Db, 
                     .values(**payload.model_dump(exclude={"asset_ids"}), updated_at=utc_now()))
     set_media(session, report_id, sorted(set(payload.asset_ids)))
     audit(session, actor.id, "report.edit", "report", report_id)
-    session.commit()
-    return report_response(response, session, take(session, reports, report_id, "报告"), actor)
+    return saved_report_response(response, session, report_id, actor)
 
 @router.delete("/{report_id}", status_code=204)
 def remove(report_id: int, session: Db, actor: Identity, if_match: str | None = Header(None)):

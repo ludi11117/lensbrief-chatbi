@@ -1,5 +1,38 @@
 import pytest
 
+from backend.app.api import reports
+
+
+def test_detail_keeps_body_attachments_and_etag_in_one_snapshot(app, client, auth, body, monkeypatch):
+    owner = auth()
+    attachment = client.post("/api/assets", headers=owner, files={"file": ("orders.csv", b"count\n3\n")})
+    assert attachment.status_code == 201
+    asset_id = attachment.json()["id"]
+    created = client.post("/api/reports", headers=owner, json=body)
+    path = f"/api/reports/{created.json()['id']}"
+    # WAL lets the second connection commit while the first is still reading.
+    with app.state.engine.connect() as connection:
+        assert connection.exec_driver_sql("PRAGMA journal_mode=WAL").scalar() == "wal"
+
+    original_present = reports.present
+
+    def edit_after_header_read(session, report, actor):
+        monkeypatch.setattr(reports, "present", original_present)
+        saved = client.put(path, headers=owner, json={**body, "content": "新稿", "asset_ids": [asset_id]})
+        assert saved.status_code == 200
+        return original_present(session, report, actor)
+
+    monkeypatch.setattr(reports, "present", edit_after_header_read)
+    first = client.get(path, headers=owner)
+    assert first.status_code == 200
+    assert first.json()["content"] == body["content"]
+    assert first.json()["asset_ids"] == []
+    assert first.headers["etag"] == created.headers["etag"]
+    latest = client.get(path, headers=owner)
+    assert latest.json()["content"] == "新稿"
+    assert latest.json()["asset_ids"] == [asset_id]
+    assert latest.headers["etag"] != first.headers["etag"]
+
 
 def test_stale_edit_preserves_new_working_copy(client, auth, body):
     owner = auth()
