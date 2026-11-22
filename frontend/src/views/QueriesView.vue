@@ -87,8 +87,17 @@ watch(detailId, async (id, _previous, onCleanup) => {
   <el-dialog v-model="dialog" :title="detailId ? '查询记录 #' + detailId : '查询记录'" width="min(720px, 94vw)">
     <el-alert v-if="detailError" type="error" :title="detailError" :closable="false" show-icon />
     <template v-else-if="detail">
+      <div class="inline muted query-detail-meta">
+        <el-tag :type="detail.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[detail.status] ?? detail.status }}</el-tag>
+        <time :datetime="detail.created_at">{{ dateText(detail.created_at, 'UTC') }} UTC</time>
+        <span>耗时 {{ detail.elapsed_ms }} ms</span>
+        <span>返回 {{ detail.row_count }} 行</span>
+      </div>
       <QueryPreview v-if="detail.result" :result="detail.result" :export-name="'query-' + detail.id" />
-      <h3>查询参数</h3><pre class="json-box">{{ JSON.stringify(detail.filters, null, 2) }}</pre>
+      <details class="query-parameters">
+        <summary>查询参数</summary>
+        <pre class="json-box">{{ JSON.stringify(detail.filters, null, 2) }}</pre>
+      </details>
     </template>
     <p v-else class="muted" role="status">正在加载查询详情…</p>
     <template #footer>
@@ -97,3 +106,8 @@ watch(detailId, async (id, _previous, onCleanup) => {
     </template>
   </el-dialog>
 </template>
+<style scoped>
+.query-detail-meta { margin-bottom: 16px; flex-wrap: wrap }
+.query-parameters { margin-top: 16px }
+.query-parameters summary { cursor: pointer }
+</style>

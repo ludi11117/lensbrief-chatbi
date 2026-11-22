@@ -52,8 +52,9 @@ export interface QueryLog {
   id: number; user_id: number; username: string; dataset_name: string; metric: string; dimension: string
   scope: Scope; status: string; row_count: number; elapsed_ms: number; created_at: string
 }
-export interface QueryDetail extends Pick<QueryLog, 'id' | 'user_id' | 'metric' | 'dimension' | 'scope'> {
+export interface QueryDetail extends Omit<QueryLog, 'username' | 'dataset_name'> {
   dataset_id: number
+  context_id?: number | null
   result: QueryResult | null
   filters: Record<string, unknown>
 }

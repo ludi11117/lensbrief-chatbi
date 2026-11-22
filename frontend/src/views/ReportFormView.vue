@@ -117,6 +117,13 @@ async function loadNewReportSource() {
     fields.metric = source.metric
     fields.dimension = source.dimension
     hydrateResult(source.result, source.id)
+    if (source.context_id) {
+      const context = await api<AnalysisContext>('/contexts/' + source.context_id)
+      if (!context.archived) {
+        contextId.value = context.id
+        goal.value = context.objective
+      }
+    }
     return
   }
   const fromContext = typeof route.query.context === 'string' && Number(route.query.context)
