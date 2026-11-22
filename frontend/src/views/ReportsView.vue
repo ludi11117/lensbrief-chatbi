@@ -36,6 +36,12 @@ async function load() {
       q: keyword.value.trim(), status: status.value, limit: limit.value, offset: (current.value - 1) * limit.value,
     }))
     if (id === requestId) {
+      const lastPage = Math.max(1, Math.ceil(result.total / result.limit))
+      if (current.value > lastPage) {
+        current.value = lastPage
+        updateUrl()
+        return
+      }
       rows.value = result.items
       total.value = result.total
     }
