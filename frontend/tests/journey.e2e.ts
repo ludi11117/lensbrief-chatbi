@@ -360,6 +360,7 @@ test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => 
   await expect(page.getByLabel('报告标题')).toHaveValue('并发编辑演示')
   const detailPath = new URL(page.url()).pathname.replace(/\/edit$/, '')
   await page.getByLabel('报告标题').fill('本地改稿，尚未提交')
+  await page.getByLabel('摘要', { exact: true }).fill('需要保留的本地摘要')
 
   const login = await page.request.post('/api/auth/login', {
     data: { username: 'manager', password: 'LensBrief2026!' },
@@ -373,6 +374,16 @@ test('并发修改后保留旧页面输入并提示冲突', async ({ page }) => 
   expect(saved.ok()).toBeTruthy()
   await page.getByRole('button', { name: '保存报告' }).click()
   await expect(page.getByText(/报告已被更新/)).toBeVisible()
+  await expect(page.getByLabel('报告标题')).toHaveValue('本地改稿，尚未提交')
+  const opened = page.waitForEvent('popup')
+  await page.getByRole('link', { name: '在新标签页编辑最新工作稿' }).click()
+  const latest = await opened
+  await expect(latest.getByLabel('报告标题')).toHaveValue('主管已保存的新稿')
+  await latest.getByLabel('摘要', { exact: true }).fill(await page.getByLabel('摘要', { exact: true }).inputValue())
+  await latest.getByRole('button', { name: '保存报告' }).click()
+  await expect(latest).toHaveURL(new RegExp(detailPath + '$'))
+  await expect(latest.getByText('需要保留的本地摘要', { exact: true })).toBeVisible()
+  await latest.close()
   await expect(page.getByLabel('报告标题')).toHaveValue('本地改稿，尚未提交')
   await page.getByRole('link', { name: '返回详情' }).click()
   await page.getByRole('button', { name: '发布报告' }).click()

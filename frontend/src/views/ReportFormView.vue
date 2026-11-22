@@ -76,6 +76,7 @@ const assetsOpen = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const error = ref('')
 const blocked = ref(false)
+const saveConflict = ref(false)
 let catalogRequest = 0
 
 async function refreshCatalog(id: number | null, datasetChanged: boolean) {
@@ -259,7 +260,10 @@ async function save() {
     })
     ElMessage.success('工作稿已保存')
     await router.push('/reports/' + report.id)
-  } catch (err) { error.value = errorText(err) } finally { saving.value = false }
+  } catch (err) {
+    error.value = errorText(err)
+    saveConflict.value = err instanceof ApiError && err.status === 412
+  } finally { saving.value = false }
 }
 </script>
 
@@ -267,6 +271,10 @@ async function save() {
   <RouterLink class="text-link" :to="reportId ? '/reports/' + reportId : '/reports'">返回{{ reportId ? '详情' : '报告中心' }}</RouterLink>
   <div class="page-title"><h1>{{ reportId ? '编辑报告' : '新建报告' }}</h1><p>整理业务发现并保存工作稿，发布后生成版本记录。</p></div>
   <el-alert v-if="error || blocked" :title="error || '当前报告不可编辑。'" type="error" show-icon :closable="false" class="page-alert" />
+  <p v-if="saveConflict && reportId" class="page-alert">
+    <WorkspaceTabLink :to="{ name: 'edit', params: { id: reportId } }">在新标签页编辑最新工作稿</WorkspaceTabLink>
+    <span class="muted">，可从本页复制要保留的修改。</span>
+  </p>
   <div v-if="!blocked" v-loading="waiting" class="editor-grid">
     <form class="panel form-panel" @submit.prevent="save">
       <h2>报告内容</h2>

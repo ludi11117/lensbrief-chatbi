@@ -106,7 +106,7 @@ erDiagram
 
 - 首次发布将草稿转为已发布。编辑已发布报告只更新工作稿，再次发布才产生新版本。归档后，列表、搜索和详情使用最后发布的版本，并保留历史。删除为软删除。
 - 报告列表把关键词、状态与分页保存在 URL。刷新或打开分享链接可恢复筛选，查询仍按打开者的权限执行。页码超出当前结果范围时回到最后一个可用页。 [URL 搜索参数设计](https://github.com/TanStack/router/blob/main/docs/router/guide/search-params.md)
-- 网页保存、发布、回滚、归档或删除时用 `If-Match` 核对报告。遇到 412，编辑页保留本地输入，详情页重新加载最新报告。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
+- 网页保存、发布、回滚、归档或删除时用 `If-Match` 核对报告。保存遇到 412 时，可从冲突提示打开最新工作稿，在两个标签页之间核对并复制要保留的修改。详情页执行发布等操作遇到 412 时会重新读取报告。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
 - 版本对比展示报告字段、已保存的查询条件、附件变更和正文逐行增删。地址栏保存对比的版本号，刷新或打开分享链接可恢复对比。新增或移除的附件可以从对应版本打开预览。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
 - JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。管理员可筛选越权记录，核对账号、资源与被拒绝的权限。
