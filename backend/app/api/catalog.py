@@ -127,19 +127,22 @@ def save_query(session, actor, payload, scope, status, started, result=None):
 def query(payload: QueryInput, session: Db, actor: Identity):
     started = perf_counter_ns()
     context = None
-    if payload.context_id is not None:
-        begin_write(session)
-        context = owned_context(session, actor, payload.context_id, active=True)
-        if context["dataset_id"] != payload.dataset_id:
-            raise HTTPException(422, "查询数据集必须与分析上下文一致。")
     take(session, datasets, payload.dataset_id, "数据集")
+    scope = payload.scope or actor.grants.get("dataset.query", "own")
     try:
+        if payload.context_id is not None:
+            begin_write(session)
+            selected = owned_context(session, actor, payload.context_id, active=True)
+            if selected["dataset_id"] != payload.dataset_id:
+                raise HTTPException(422, "查询数据集必须与分析上下文一致。")
+            context = selected
         maximum = actor.scope("dataset.query", "dataset", payload.dataset_id)
-        scope = payload.scope or maximum
         if SCOPE_RANK[scope] > SCOPE_RANK[maximum]:
             raise Denied(actor.id, "dataset.query", "dataset", payload.dataset_id)
-    except Denied:
-        save_query(session, actor, payload, payload.scope or "own", "denied", started)
+    except (Denied, HTTPException) as exc:
+        status = "denied" if isinstance(exc, Denied) else "invalid"
+        logged = payload if context else payload.model_copy(update={"context_id": None})
+        save_query(session, actor, logged, scope, status, started)
         raise
 
     metric = session.execute(select(metrics).where(metrics.c.dataset_id == payload.dataset_id,

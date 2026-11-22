@@ -1,7 +1,9 @@
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import insert
 
 from backend.app.db import ROOT
+from backend.app.models import datasets
 from backend.scripts.seed import seed
 
 def packs(client, headers):
@@ -28,6 +30,11 @@ def test_context_is_personal_even_with_department_and_admin_scope(client, auth, 
         assert client.post("/api/queries", headers=headers, json={**query_body, "context_id": context_id}).status_code == 403
         record = client.get(f"/api/queries/{query_id}", headers=headers).json()
         assert "context_id" not in record and "context_id" not in record["filters"]
+        denied = client.get("/api/queries", headers=headers).json()["items"][0]
+        assert denied["status"] == "denied"
+        attempt = client.get(f"/api/queries/{denied['id']}", headers=headers).json()
+        assert attempt["context_id"] is None and attempt["filters"]["context_id"] is None
+        assert attempt["result"] is None
     history = client.get(f"/api/queries?context_id={context_id}", headers=owner)
     assert [row["id"] for row in history.json()["items"]] == [query_id]
 
@@ -41,9 +48,27 @@ def test_archived_context_keeps_history_and_can_be_restored(client, auth, query_
     assert archived.json()["archived"] is True
     assert client.post("/api/queries", headers=headers, json=attempt).status_code == 409
     assert client.get(f"/api/queries?context_id={context_id}", headers=headers).json()["total"] == 1
+    assert client.get("/api/queries", headers=headers).json()["items"][0]["status"] == "invalid"
     assert client.get("/api/contexts?archived=false", headers=headers).json()["total"] == 0
     assert client.put(route, headers=headers, json=payload).status_code == 200
     assert client.post("/api/queries", headers=headers, json=attempt).status_code == 201
+
+def test_query_logs_missing_or_mismatched_contexts_without_linking_them(app, client, auth, query_body):
+    headers = auth()
+    context_id, _ = create_context(client, headers)
+    with app.state.session_factory.begin() as session:
+        session.execute(insert(datasets).values(id=2, code="secondary", name="备用数据", description="测试数据"))
+
+    unknown = client.post("/api/queries", headers=headers, json={**query_body, "context_id": 999})
+    mismatch = client.post("/api/queries", headers=headers, json={**query_body, "dataset_id": 2, "context_id": context_id})
+    absent_dataset = client.post("/api/queries", headers=headers, json={**query_body, "dataset_id": 999})
+    assert (unknown.status_code, mismatch.status_code, absent_dataset.status_code) == (404, 422, 404)
+    history = client.get("/api/queries", headers=headers).json()
+    assert history["total"] == 2
+    for row in history["items"]:
+        assert (row["status"], row["row_count"]) == ("invalid", 0)
+        detail = client.get(f"/api/queries/{row['id']}", headers=headers).json()
+        assert detail["context_id"] is None and detail["filters"]["context_id"] is None
 
 def test_selected_knowledge_revision_stays_in_query_draft_and_published_report(client, auth, query_body, body):
     headers = auth()
