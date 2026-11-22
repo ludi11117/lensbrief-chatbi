@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 test('登录、草稿、附件、发布、版本对比和回滚、403、查询记录', async ({ page }) => {
+  test.setTimeout(60_000)
   const screenshotDir = process.env.LENSBRIEF_SCREENSHOT_DIR
   const printDir = process.env.LENSBRIEF_PRINT_DIR
   const title = screenshotDir || printDir ? '十月渠道销售复盘' : '面试演示 ' + Date.now()
@@ -150,13 +151,30 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByRole('spinbutton', { name: '用户 ID' }).fill('1')
   await page.getByRole('combobox', { name: '执行状态' }).press('ArrowDown')
   await page.getByRole('option', { name: '成功', exact: true }).click()
+  await page.getByLabel('查询开始日期（UTC）').fill('2026-01-01')
+  await page.getByLabel('查询结束日期（UTC）').fill('2099-12-31')
   const byState = page.waitForResponse(response => {
     const url = new URL(response.url())
     return url.pathname === '/api/queries' && url.searchParams.get('status') === 'ok'
   })
   await page.getByRole('button', { name: '筛选' }).click()
-  expect((await byState).status()).toBe(200)
+  const historyResponse = await byState
+  expect(historyResponse.status()).toBe(200)
+  const { total: historyTotal, limit: historyLimit } = await historyResponse.json()
+  const lastHistoryPage = Math.ceil(historyTotal / historyLimit)
   await expect(page.getByRole('cell', { name: 'analyst' }).first()).toBeVisible()
+  const historyUrl = new URL(page.url())
+  expect(Object.fromEntries(historyUrl.searchParams)).toEqual({
+    user_id: '1', status: 'ok', start: '2026-01-01', end: '2099-12-31',
+  })
+  historyUrl.searchParams.set('page', '999')
+  await page.goto(historyUrl.href)
+  await expect(page.getByRole('spinbutton', { name: '用户 ID' })).toHaveValue('1')
+  await expect(page.getByLabel('查询开始日期（UTC）')).toHaveValue('2026-01-01')
+  await expect(page.getByLabel('查询结束日期（UTC）')).toHaveValue('2099-12-31')
+  await expect(page.getByRole('cell', { name: 'analyst' }).first()).toBeVisible()
+  await expect(page).toHaveURL(url => url.searchParams.get('status') === 'ok'
+    && url.searchParams.get('page') === (lastHistoryPage > 1 ? String(lastHistoryPage) : null))
   await expect(page.getByRole('link', { name: '权限管理' })).toHaveCount(0)
   await page.getByRole('button', { name: /周宁/ }).click()
   await page.getByText('退出登录').click()

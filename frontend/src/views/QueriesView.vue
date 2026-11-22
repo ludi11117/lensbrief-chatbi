@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
@@ -8,18 +8,35 @@ import { dateText, scopeText, type Page, type QueryDetail, type QueryLog, type Q
 
 const route = useRoute()
 const router = useRouter()
+const pageSize = 15
+const labels: Record<QueryStatus, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
+function positiveInteger(value: unknown) {
+  const number = typeof value === 'string' ? Number(value) : 0
+  return number > 0 && Number.isSafeInteger(number) ? number : undefined
+}
+function filterDate(value: unknown) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''
+}
 const contextId = computed(() => typeof route.query.context === 'string' ? route.query.context : undefined)
-const detailId = computed(() => {
-  const id = typeof route.query.id === 'string' ? Number(route.query.id) : 0
-  return Number.isSafeInteger(id) && id > 0 ? id : null
+const detailId = computed(() => positiveInteger(route.query.id) ?? null)
+const current = computed(() => {
+  const page = positiveInteger(route.query.page) ?? 1
+  return Number.isSafeInteger(page * pageSize) ? page : 1
 })
+const appliedUser = computed(() => positiveInteger(route.query.user_id))
+const appliedStatus = computed(() => {
+  const value = route.query.status
+  return typeof value === 'string' && Object.hasOwn(labels, value) ? value as QueryStatus : undefined
+})
+const appliedStart = computed(() => filterDate(route.query.start))
+const appliedEnd = computed(() => filterDate(route.query.end))
+const filterSources = [appliedUser, appliedStatus, appliedStart, appliedEnd] as const
 const dialog = computed({
   get: () => detailId.value !== null,
   set: (open: boolean) => { if (!open) selectDetail(null) },
 })
 const data = ref<QueryLog[]>([])
 const total = ref(0)
-const current = ref(1)
 const userId = ref<number>()
 const status = ref<QueryStatus>()
 const start = ref('')
@@ -28,25 +45,45 @@ const error = ref('')
 const busy = ref(false)
 const detail = ref<QueryDetail>()
 const detailError = ref('')
-const labels: Record<QueryStatus, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
 let seq = 0
 async function load() {
   const request = ++seq
   busy.value = true
   error.value = ''
   try {
-    const result = await api<Page<QueryLog>>('/queries' + params({ user_id: userId.value, context_id: contextId.value, start: start.value, end: end.value,
-      status: status.value, limit: 15, offset: (current.value - 1) * 15 }))
-    if (seq === request) { data.value = result.items; total.value = result.total }
+    const result = await api<Page<QueryLog>>('/queries' + params({
+      user_id: appliedUser.value, context_id: contextId.value, start: appliedStart.value, end: appliedEnd.value,
+      status: appliedStatus.value, limit: pageSize, offset: (current.value - 1) * pageSize,
+    }))
+    if (seq !== request) return
+    const lastPage = Math.max(1, Math.ceil(result.total / pageSize))
+    if (current.value > lastPage) { selectPage(lastPage); return }
+    data.value = result.items
+    total.value = result.total
   } catch (err) { if (seq === request) error.value = errorText(err) } finally { if (seq === request) busy.value = false }
 }
-function filter() { current.value = 1; void load() }
+function filter() {
+  const filters = {
+    user_id: userId.value?.toString(), status: status.value || undefined,
+    start: start.value || undefined, end: end.value || undefined, page: undefined,
+  }
+  if (Object.entries(filters).every(([key, value]) => route.query[key] === value)) void load()
+  else void router.replace({ query: { ...route.query, ...filters } })
+}
 function reset() { userId.value = undefined; status.value = undefined; start.value = ''; end.value = ''; filter() }
+function selectPage(page: number) {
+  if (page !== current.value) void router.replace({ query: { ...route.query, page: page > 1 ? String(page) : undefined } })
+}
 function selectDetail(id: number | null) {
   void router.replace({ query: { ...route.query, id: id?.toString() } })
 }
-onMounted(load)
-watch(contextId, filter)
+watch(filterSources, ([nextUser, nextStatus, nextStart, nextEnd]) => {
+  userId.value = nextUser
+  status.value = nextStatus
+  start.value = nextStart
+  end.value = nextEnd
+}, { immediate: true })
+watch([...filterSources, contextId, current], () => void load(), { immediate: true })
 watch(detailId, async (id, _previous, onCleanup) => {
   detail.value = undefined
   detailError.value = ''
@@ -86,7 +123,7 @@ watch(detailId, async (id, _previous, onCleanup) => {
       <el-table-column label="执行时间（UTC）" min-width="168"><template #default="{ row }">{{ dateText(row.created_at, 'UTC') }}</template></el-table-column>
       <el-table-column label="操作" width="82"><template #default="{ row }"><el-button text type="primary" @click="selectDetail(row.id)">详情</el-button></template></el-table-column>
     </el-table>
-    <div class="pagination"><el-pagination v-model:current-page="current" :page-size="15" :total="total" background layout="prev, pager, next" @current-change="load" /></div>
+    <div v-if="total" class="pagination"><el-pagination :current-page="current" :page-size="pageSize" :total="total" background layout="prev, pager, next" @update:current-page="selectPage" /></div>
   </section>
   <el-dialog v-model="dialog" :title="detailId ? '查询记录 #' + detailId : '查询记录'" width="min(720px, 94vw)">
     <el-alert v-if="detailError" type="error" :title="detailError" :closable="false" show-icon />
