@@ -34,6 +34,9 @@ ALL_CHANNELS = re.compile(r"(?:全部|所有)渠道")
 CHANNEL_SELECTOR = re.compile(r"(?:只看|仅看)\s*")
 CHANNEL_CONNECTOR = re.compile(r"^\s*(?:[和与或、/+]|以及)")
 PERIOD_CHANGE = re.compile(r"取消(?:对[照比]上一?期|上一?期对照|对照)|(?:不|不用|无需)?对[照比]上一?期")
+GROUPING = "|".join(aliases if code == "day" else f"按(?:{aliases})" for code, aliases in DIMENSIONS.items())
+GROUPED_METRIC = re.compile(rf"(?:{GROUPING})\s*(?:查看|看一看|看看?|查询|查|统计|分析)(?:一下|下)?(.*?)"
+                            rf"(?:{'|'.join(METRICS.values())})")
 
 class PlanError(ValueError):
     pass
@@ -156,6 +159,13 @@ def resolve_question(question, available_window, previous, available_channels):
     dimension = choose(axes_text, DIMENSIONS, "分组维度")
     anchor = date.fromisoformat(previous["end"]) if follow_up else available_window[1]
     window, note = requested_window(text, anchor, available_window[1])
+    if dimension and (grouped := GROUPED_METRIC.search(axes_text)):
+        qualifier = grouped[1]
+        for dates in (ISO_DATE, MONTHS, RECENT_DAYS):
+            qualifier = dates.sub("", qualifier)
+        qualifier = re.sub(rf"(?:各个?|每个)(?:{DIMENSIONS[dimension]})", "", qualifier)
+        if not re.fullmatch(r"(?:[\s~—–-]|本期|从|至|到|的)*", qualifier):
+            raise PlanError("指标前有未识别的筛选条件。请写明一个可用渠道，或在表单中选择。")
     if follow_up and not (metric or dimension or window or channel or clear_channel or periods):
         raise PlanError("请指出要调整的指标、维度、日期、渠道或对照方式。")
     inherited = []

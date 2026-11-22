@@ -138,6 +138,8 @@ erDiagram
 
 在同一分析上下文完成首次查询后，可以追问「改按产品」或「改看退款率」。省略的条件沿用当前账号在该上下文的最近一次成功查询。主流程可离线运行，解析覆盖一个指标、一个分组维度、一个连续日期区间和一个可用渠道。试试「十月按产品看官网销售额」，再用「改成全部渠道」清除渠道筛选。
 
+「按产品看抖音成交额」这类提问如果带有当前范围内未识别的筛选词，解析会提示确认渠道。
+
 可选的模型辅助用于匹配规则未识别的指标或维度，例如「比较各款的下单笔数」。页面会标注解析来源和数据范围，日期与范围由服务端确定。
 
 查询历史中的个人成功查询可直接用于新建报告。表单带入原指标、维度、日期和已保存的结果。原上下文仍有效时，表单也会选中上下文并带入分析目标，便于继续提问。查询详情可用地址栏链接打开，报告编辑页可在新标签页查看来源。链接仍按访问账号的权限校验。 [Metabase 保存结果的复用设计](https://github.com/metabase/metabase/blob/master/docs/questions/native-editor/referencing-saved-questions-in-queries.md)
@@ -178,7 +180,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入测试数据。
 
-本地实测通过 pytest 81 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 85 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。迁移测试将含已发布报告、查询与附件的测试库切回初版结构，再升级并校验原数据仍可读取。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

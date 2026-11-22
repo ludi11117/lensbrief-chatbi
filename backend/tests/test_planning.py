@@ -80,10 +80,21 @@ def test_period_comparison_can_be_planned_inherited_and_cleared(client, auth):
     "2026-10-15 至 2026-10-01 按渠道看销售额", "2026-13-01 按渠道看销售额",
     "2026年11月2日按渠道看销售额", "2026年9月和10月按渠道看销售额",
     "最近367天按产品看退款率", "最近一周按产品看退款率", "十月和最近7天按渠道看销售额",
+    "按产品看抖音成交额", "按产品看官网直营的成交额", "按部门查询2026年10月经销商成交额",
 ])
 def test_ambiguous_invalid_or_unsupported_questions_rejected(client, auth, question):
     response = plan(client, auth(), question)
     assert response.status_code == 422
+
+def test_grouped_question_accepts_dates_and_grouping_words_before_metric(client, auth):
+    headers = auth()
+    dated = plan(client, headers, "按产品看2026-10-01 至 2026-10-07的官网销售额")
+    assert dated.status_code == 200, dated.text
+    assert (dated.json()["channel"], dated.json()["end"]) == ("官网", "2026-10-07")
+    for phrase in ("按渠道看各渠道的销售额", "按产品看本期销售额", "按机型看一下成交额"):
+        response = plan(client, headers, phrase)
+        assert response.status_code == 200, response.text
+        assert response.json()["channel"] is None
 
 def test_followup_only_uses_latest_successful_query_from_owned_context(client, auth, query_body):
     owner = auth()
