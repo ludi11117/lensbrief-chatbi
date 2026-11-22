@@ -227,11 +227,16 @@ class DiffItem(BaseModel):
     before: str | int | list[int] | None
     after: str | int | list[int] | None
 
+class AssetDiff(BaseModel):
+    added: list[Asset]
+    removed: list[Asset]
+
 class DiffResult(BaseModel):
     base: int
     target: int
     changes: list[DiffItem]
     query_changes: list[DiffItem]
+    asset_changes: AssetDiff
     content_changed: bool
     content_diff: list[str]
 

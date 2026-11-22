@@ -109,7 +109,7 @@
 
 报告详情的响应头 `ETag` 与响应体 `etag` 表示读取时的报告状态和可见快照。编辑、发布、回滚、归档与删除时可将其原样放入 `If-Match`。服务端在写事务内核对条件，报告已变更时返回 412。
 
-`diff` 返回 `{base,target,changes,query_changes,content_changed,content_diff}`。元数据条目包含 `field`、`before`、`after`。`changes` 涉及标题、摘要、数据集、查询和附件 ID。`query_changes` 比较发布时保存的指标、维度、数据范围、日期、渠道、对照期与知识包版本。`content_diff` 是 unified diff 文本行数组，包含新增、删除与相邻的上下文行。
+`diff` 返回 `{base,target,changes,query_changes,asset_changes,content_changed,content_diff}`。元数据条目包含 `field`、`before`、`after`。`changes` 涉及标题、摘要、数据集、查询和附件 ID。`query_changes` 比较发布时保存的指标、维度、数据范围、日期、渠道、对照期与知识包版本。`asset_changes.added` 和 `asset_changes.removed` 返回文件元数据，预览分别使用目标版本和基准版本。`content_diff` 是 unified diff 文本行数组，包含新增、删除与相邻的上下文行。
 
 反馈绑定报告和版本号，包含 `id`、`author_name`、`body`、`created_at`。正文为 1 至 1200 字符。归档后可以查看反馈，提交新反馈返回 409。报告页面用 `?version=1` 链接定位到指定版本。
 

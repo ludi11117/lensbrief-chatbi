@@ -8,6 +8,7 @@ import QueryPreview from '../components/QueryResult.vue'
 import ReportActions from '../components/ReportActions.vue'
 import StatusPill from '../components/StatusPill.vue'
 import VersionFeedback from '../components/VersionFeedback.vue'
+import WorkspaceTabLink from '../components/WorkspaceTabLink.vue'
 import { dateText, scopeText, type Page, type Report, type Scope, type Snapshot, type VersionDiff, type VersionRow } from '../types'
 
 const route = useRoute()
@@ -24,6 +25,7 @@ const compareOpen = ref(false)
 const base = ref<number>()
 const target = ref<number>()
 const comparison = ref<VersionDiff>()
+const reportDiffFields = computed(() => comparison.value?.changes.filter(change => change.field !== 'asset_ids') ?? [])
 const compareError = ref('')
 const loading = ref(false)
 const busy = ref(false)
@@ -41,7 +43,7 @@ const previewLabel = computed(() => {
 const printable = ref<HTMLElement>()
 const expandedForPrint: HTMLDetailsElement[] = []
 const labels: Record<string, string> = {
-  title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID',
+  title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录',
   metric_name: '指标', dimension_name: '分组维度', scope: '数据范围', start: '开始日期', end: '结束日期',
   channel: '渠道', comparison_window: '对照期', knowledge_pack: '知识包',
 }
@@ -232,7 +234,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       <el-button type="primary" @click="compare">开始对比</el-button></div>
     <el-alert v-if="compareError" :title="compareError" type="error" :closable="false" />
     <template v-if="comparison">
-      <template v-for="group in [{ title: '报告字段', rows: comparison.changes }, { title: '查询条件', rows: comparison.query_changes }]" :key="group.title">
+      <template v-for="group in [{ title: '报告字段', rows: reportDiffFields }, { title: '查询条件', rows: comparison.query_changes }]" :key="group.title">
         <template v-if="group.rows.length">
           <h3 class="content-diff-heading">{{ group.title }}</h3>
           <el-table :data="group.rows">
@@ -243,6 +245,18 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
         </template>
       </template>
       <p v-if="!comparison.changes.length && !comparison.query_changes.length">元数据相同。</p>
+      <div v-if="comparison.asset_changes.added.length || comparison.asset_changes.removed.length" class="attachment-list">
+        <h3>附件变更</h3>
+        <template v-for="group in [
+          { label: '新增', version: comparison.target, files: comparison.asset_changes.added },
+          { label: '移除', version: comparison.base, files: comparison.asset_changes.removed },
+        ]" :key="group.label">
+          <div v-for="file in group.files" :key="file.id" class="inline">
+            <el-tag :type="group.label === '新增' ? 'success' : 'warning'" effect="plain">{{ group.label }}</el-tag>
+            <WorkspaceTabLink :to="{ name: 'asset', params: { asset: file.id }, query: { report: id, version: group.version } }">{{ file.filename }}</WorkspaceTabLink>
+          </div>
+        </template>
+      </div>
       <h3 class="content-diff-heading">正文变更</h3>
       <pre v-if="comparison.content_changed" class="content-diff" tabindex="0" aria-label="正文逐行对比"><span
         v-for="(line, index) in comparison.content_diff" :key="index" :class="diffStyle(line, index)">{{ line }}</span></pre>

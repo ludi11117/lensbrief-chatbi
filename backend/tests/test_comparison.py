@@ -67,6 +67,24 @@ def test_version_diff_reports_changed_saved_query_conditions(client, auth, body,
         {"field": "comparison_window", "before": None, "after": "2026-09-28 至 2026-10-14"},
     ]
 
+def test_version_diff_resolves_added_and_removed_attachment_names(client, auth, body):
+    headers = auth()
+    uploads = [client.post("/api/assets", headers=headers, files={"file": (filename, b"x\n1\n")})
+               for filename in ("年初数据.csv", "更新数据.csv")]
+    assert all(upload.status_code == 201 for upload in uploads)
+    original, updated = (upload.json() for upload in uploads)
+    created = client.post("/api/reports", headers=headers, json={**body, "asset_ids": [original["id"]]})
+    assert created.status_code == 201
+    path = f"/api/reports/{created.json()['id']}"
+    assert client.post(path + "/publish", headers=headers).status_code == 201
+    assert client.put(path, headers=headers, json={**body, "asset_ids": [updated["id"]]}).status_code == 200
+    assert client.post(path + "/publish", headers=headers).status_code == 201
+
+    response = client.get(path + "/versions/diff", headers=headers, params={"base": 1, "target": 2})
+    assert response.status_code == 200
+    assert response.json()["asset_changes"] == {"added": [updated], "removed": [original]}
+    assert response.json()["changes"] == [{"field": "asset_ids", "before": [original["id"]], "after": [updated["id"]]}]
+
 @pytest.mark.parametrize("override", [{"dimension": "day"}, {"start": "0001-01-01", "end": "0001-01-01"}])
 def test_previous_period_rejects_unsupported_dimensions_or_invalid_windows(client, auth, query_body, override):
     response = client.post("/api/queries", headers=auth(), json={**query_body, **override, "compare_previous": True})

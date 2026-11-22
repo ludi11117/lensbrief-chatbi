@@ -108,7 +108,7 @@ erDiagram
 - 报告列表把关键词、状态与分页保存在 URL。刷新或打开分享链接可恢复筛选，查询仍按打开者的权限执行。页码超出当前结果范围时回到最后一个可用页。 [URL 搜索参数设计](https://github.com/TanStack/router/blob/main/docs/router/guide/search-params.md)
 - 网页保存、发布、回滚、归档或删除时用 `If-Match` 核对报告。遇到 412，编辑页保留本地输入，详情页重新加载最新报告。 [条件更新参考](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#conditional-requests)
 - 回滚会新建一个发布版本，并恢复正文和附件。发布与回滚使用 `BEGIN IMMEDIATE` 串行化 SQLite 写事务，一次提交保存版本、附件关系、报告指针和审计。
-- 版本对比展示报告字段、已保存的查询条件和正文逐行增删。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
+- 版本对比展示报告字段、已保存的查询条件、附件变更和正文逐行增删。新增或移除的附件可以从对应版本打开预览。正文差异由 Python 标准库生成。 [CPython difflib](https://github.com/python/cpython/blob/main/Doc/library/difflib.rst)
 - JWT 有效期 8 小时，密码使用 Argon2 哈希。服务端每次请求读取有效角色。越权返回 403 并单独写入审计。管理员可筛选越权记录，核对账号、资源与被拒绝的权限。
 - 查询历史支持按用户、UTC 日期和执行状态组合筛选，已应用的筛选和页码可随链接保存。链接按打开者的权限读取记录。上下文校验未通过的查询可在通用历史中查看。
 - 查询先按本人、部门或全部过滤事实表，再做聚合。查询记录还要满足当前有效的数据范围。报告表单允许有部门权限的账号选择本人或部门范围，解析、渠道目录和指标执行使用同一范围。报告可引用所有者的本人查询或归属部门的部门查询。
@@ -183,7 +183,7 @@ npm run test:browser
 
 Windows 本地脚本创建的 Python 在 `.venv\Scripts\python.exe`。Playwright 默认访问 8080 上已启动的工作台，可通过 `LENSBRIEF_BASE_URL` 指定地址，或用 `LENSBRIEF_BROWSER=msedge` 复用系统 Edge。浏览器测试会写入测试数据。
 
-本地实测通过 pytest 87 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
+本地实测通过 pytest 88 项、Vitest 10 项与 Playwright 4 条完整流程。Windows 一键启动与 Vite 生产构建也已验证。pytest 输出一条 Starlette 测试客户端弃用提示。仓库的 Verify 工作流在 Linux 上构建 Compose 服务，并运行浏览器流程。
 
 后端覆盖跨范围 403、分页边界、事务回滚、并发版本编号、版本恢复、非法状态流转、文件校验与预览、查询范围和日志。迁移测试将含已发布报告、查询与附件的测试库切回初版结构，再升级并校验原数据仍可读取。Vitest 覆盖筛选、分页重置与权限入口，浏览器测试验证真实的前后端流程。
 

@@ -48,6 +48,7 @@ export interface VersionDiff {
   content_diff: string[]
   changes: { field: string; before: unknown; after: unknown }[]
   query_changes: VersionDiff['changes']
+  asset_changes: { added: Asset[]; removed: Asset[] }
 }
 export type QueryStatus = 'ok' | 'denied' | 'invalid' | 'error'
 export interface QueryLog {

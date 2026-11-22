@@ -50,6 +50,8 @@ def working_snapshot(session, report):
             "content": report["content"], "asset_ids": list(media), "query": json.loads(query) if query else None}
 
 def media_metadata(session, ids):
+    if not ids:
+        return []
     return [as_dict(row) for row in session.execute(select(assets.c.id, assets.c.filename, assets.c.mime,
                                                         assets.c.size_bytes).where(assets.c.id.in_(ids))
                                                         .order_by(assets.c.id))]
@@ -277,6 +279,7 @@ def diff(report_id: int, base: int, target: int, session: Db, actor: Identity):
     before = json.loads(get_version(session, report_id, base)["snapshot_json"])
     after = json.loads(get_version(session, report_id, target)["snapshot_json"])
     before_query, after_query = query_metadata(before), query_metadata(after)
+    old_assets, new_assets = set(before["asset_ids"]), set(after["asset_ids"])
     content_diff = list(unified_diff(before["content"].split("\n"), after["content"].split("\n"),
                                      fromfile=f"v{base}", tofile=f"v{target}", n=2, lineterm=""))
     return {"base": base, "target": target, "changes": [
@@ -285,7 +288,10 @@ def diff(report_id: int, base: int, target: int, session: Db, actor: Identity):
     ], "query_changes": [
         {"field": key, "before": before_query[key], "after": after_query[key]}
         for key in before_query if before_query[key] != after_query[key]
-    ], "content_changed": bool(content_diff), "content_diff": content_diff}
+    ], "asset_changes": {
+        "added": media_metadata(session, sorted(new_assets - old_assets)),
+        "removed": media_metadata(session, sorted(old_assets - new_assets)),
+    }, "content_changed": bool(content_diff), "content_diff": content_diff}
 
 @router.get("/{report_id}/versions/{number}", response_model=Version)
 def version_detail(report_id: int, number: int, session: Db, actor: Identity):
