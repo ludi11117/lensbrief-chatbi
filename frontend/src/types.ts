@@ -47,6 +47,7 @@ export interface VersionDiff {
   base: number; target: number; content_changed: boolean
   content_diff: string[]
   changes: { field: string; before: unknown; after: unknown }[]
+  query_changes: VersionDiff['changes']
 }
 export interface QueryLog {
   id: number; user_id: number; username: string; dataset_name: string; metric: string; dimension: string

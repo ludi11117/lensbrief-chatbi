@@ -224,6 +224,7 @@ class DiffResult(BaseModel):
     base: int
     target: int
     changes: list[DiffItem]
+    query_changes: list[DiffItem]
     content_changed: bool
     content_diff: list[str]
 

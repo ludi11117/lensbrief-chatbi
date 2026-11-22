@@ -41,6 +41,32 @@ def test_previous_period_returns_empty_rows_when_no_data(client, auth, query_bod
     assert response.status_code == 201, response.text
     assert response.json()["comparison"] == {"start": "2026-08-31", "end": "2026-09-30", "rows": []}
 
+def test_version_diff_reports_changed_saved_query_conditions(client, auth, body, query_body):
+    headers = auth()
+
+    def run_query(**overrides):
+        response = client.post("/api/queries", headers=headers, json={**query_body, **overrides})
+        assert response.status_code == 201, response.text
+        return response.json()["id"]
+
+    first = run_query()
+    second = run_query(start="2026-10-15", channel="官网", compare_previous=True)
+    created = client.post("/api/reports", headers=headers, json={**body, "query_id": first})
+    assert created.status_code == 201
+    path = f"/api/reports/{created.json()['id']}"
+    assert client.post(path + "/publish", headers=headers).status_code == 201
+    assert client.put(path, headers=headers, json={**body, "query_id": second}).status_code == 200
+    assert client.post(path + "/publish", headers=headers).status_code == 201
+
+    result = client.get(path + "/versions/diff", headers=headers, params={"base": 1, "target": 2}).json()
+
+    assert result["changes"] == [{"field": "query_id", "before": first, "after": second}]
+    assert result["query_changes"] == [
+        {"field": "start", "before": "2026-10-01", "after": "2026-10-15"},
+        {"field": "channel", "before": None, "after": "官网"},
+        {"field": "comparison_window", "before": None, "after": "2026-09-28 至 2026-10-14"},
+    ]
+
 @pytest.mark.parametrize("override", [{"dimension": "day"}, {"start": "0001-01-01", "end": "0001-01-01"}])
 def test_previous_period_rejects_unsupported_dimensions_or_invalid_windows(client, auth, query_body, override):
     response = client.post("/api/queries", headers=auth(), json={**query_body, **override, "compare_previous": True})

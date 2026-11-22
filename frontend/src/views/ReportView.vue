@@ -8,7 +8,7 @@ import QueryPreview from '../components/QueryResult.vue'
 import ReportActions from '../components/ReportActions.vue'
 import StatusPill from '../components/StatusPill.vue'
 import VersionFeedback from '../components/VersionFeedback.vue'
-import { dateText, type Page, type Report, type Snapshot, type VersionDiff, type VersionRow } from '../types'
+import { dateText, scopeText, type Page, type Report, type Scope, type Snapshot, type VersionDiff, type VersionRow } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,8 +40,15 @@ const previewLabel = computed(() => {
 })
 const printable = ref<HTMLElement>()
 const expandedForPrint: HTMLDetailsElement[] = []
-const labels: Record<string, string> = { title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID' }
-const format = (value: unknown) => Array.isArray(value) ? value.join('、') || '—' : String(value ?? '—')
+const labels: Record<string, string> = {
+  title: '标题', description: '摘要', dataset_id: '数据集', query_id: '查询记录', asset_ids: '附件 ID',
+  metric_name: '指标', dimension_name: '分组维度', scope: '数据范围', start: '开始日期', end: '结束日期',
+  channel: '渠道', comparison_window: '对照期', knowledge_pack: '知识包',
+}
+const format = (field: string, value: unknown) => {
+  if (field === 'scope' && value) return scopeText[value as Scope]
+  return Array.isArray(value) ? value.join('、') || '—' : String(value ?? '—')
+}
 function diffStyle(line: string, index: number) {
   if (index < 2 || line.startsWith('@@')) return 'diff-meta'
   if (line.startsWith('+')) return 'diff-added'
@@ -213,12 +220,17 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       <el-button type="primary" @click="compare">开始对比</el-button></div>
     <el-alert v-if="compareError" :title="compareError" type="error" :closable="false" />
     <template v-if="comparison">
-      <el-table v-if="comparison.changes.length" :data="comparison.changes">
-        <el-table-column label="字段"><template #default="{ row }">{{ labels[row.field] || row.field }}</template></el-table-column>
-        <el-table-column label="原值"><template #default="{ row }">{{ format(row.before) }}</template></el-table-column>
-        <el-table-column label="新值"><template #default="{ row }">{{ format(row.after) }}</template></el-table-column>
-      </el-table>
-      <p v-else>元数据相同。</p>
+      <template v-for="group in [{ title: '报告字段', rows: comparison.changes }, { title: '查询条件', rows: comparison.query_changes }]" :key="group.title">
+        <template v-if="group.rows.length">
+          <h3 class="content-diff-heading">{{ group.title }}</h3>
+          <el-table :data="group.rows">
+            <el-table-column label="字段"><template #default="{ row }">{{ labels[row.field] || row.field }}</template></el-table-column>
+            <el-table-column label="原值"><template #default="{ row }">{{ format(row.field, row.before) }}</template></el-table-column>
+            <el-table-column label="新值"><template #default="{ row }">{{ format(row.field, row.after) }}</template></el-table-column>
+          </el-table>
+        </template>
+      </template>
+      <p v-if="!comparison.changes.length && !comparison.query_changes.length">元数据相同。</p>
       <h3 class="content-diff-heading">正文变更</h3>
       <pre v-if="comparison.content_changed" class="content-diff" tabindex="0" aria-label="正文逐行对比"><span
         v-for="(line, index) in comparison.content_diff" :key="index" :class="diffStyle(line, index)">{{ line }}</span></pre>

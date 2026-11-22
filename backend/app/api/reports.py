@@ -15,6 +15,16 @@ from .common import Limit, Offset, count, page, take
 
 router = APIRouter(prefix="/reports", tags=["报告及版本"])
 METADATA = ("title", "description", "dataset_id", "query_id", "asset_ids")
+QUERY_FIELDS = ("metric_name", "dimension_name", "scope", "start", "end", "channel")
+
+def query_metadata(snapshot):
+    query = snapshot.get("query") or {}
+    metadata = {field: query.get(field) for field in QUERY_FIELDS}
+    comparison = query.get("comparison")
+    knowledge = query.get("knowledge")
+    metadata["comparison_window"] = f"{comparison['start']} 至 {comparison['end']}" if comparison else None
+    metadata["knowledge_pack"] = f"{knowledge['title']} v{knowledge['revision']}" if knowledge else None
+    return metadata
 
 def get_report(session, actor, report_id, action):
     actor.scope(action, "report", report_id)
@@ -266,11 +276,15 @@ def diff(report_id: int, base: int, target: int, session: Db, actor: Identity):
     get_report(session, actor, report_id, "report.read")
     before = json.loads(get_version(session, report_id, base)["snapshot_json"])
     after = json.loads(get_version(session, report_id, target)["snapshot_json"])
+    before_query, after_query = query_metadata(before), query_metadata(after)
     content_diff = list(unified_diff(before["content"].split("\n"), after["content"].split("\n"),
                                      fromfile=f"v{base}", tofile=f"v{target}", n=2, lineterm=""))
     return {"base": base, "target": target, "changes": [
         {"field": key, "before": before[key], "after": after[key]}
         for key in METADATA if before[key] != after[key]
+    ], "query_changes": [
+        {"field": key, "before": before_query[key], "after": after_query[key]}
+        for key in before_query if before_query[key] != after_query[key]
     ], "content_changed": bool(content_diff), "content_diff": content_diff}
 
 @router.get("/{report_id}/versions/{number}", response_model=Version)
