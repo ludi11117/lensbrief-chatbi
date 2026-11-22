@@ -35,7 +35,8 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await expect(page.getByLabel('报告标题')).not.toHaveValue('')
   await page.getByLabel('报告标题').fill(title)
   await page.locator('input[type=file]').setInputFiles({
-    name: '渠道样例.csv', mimeType: 'text/csv', buffer: Buffer.from('渠道,订单量\n官网,12\n电商平台,29\n'),
+    name: '渠道样例.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('渠道,订单量\n官网,12\n电商平台,29\n' + Array.from({ length: 99 }, (_, n) => '分店' + n + ',' + n).join('\n')),
   })
   await expect(page.getByText('渠道样例.csv')).toBeVisible()
   await page.locator('input[type=file]').setInputFiles({
@@ -132,6 +133,9 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByRole('link', { name: /渠道样例.csv/ }).click()
   await expect(page.getByRole('heading', { name: '文件预览' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '电商平台' })).toBeVisible()
+  await page.locator('.el-pager').getByText('5', { exact: true }).click()
+  await expect(page.getByText('第 101 行，共 101 行')).toBeVisible()
+  await expect(page.getByRole('cell', { name: '分店98', exact: true })).toBeVisible()
   expect(fileRequests).toHaveLength(0)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: '下载文件' }).click()

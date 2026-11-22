@@ -17,9 +17,22 @@ const attachment = ref<Asset>()
 const filename = computed(() => attachment.value?.filename ?? '文件 ' + id)
 const source = ref('')
 const csv = ref<Csv>()
+const currentPage = ref(1)
+const pageSize = 25
+const firstRow = computed(() => (currentPage.value - 1) * pageSize + 1)
 const busy = ref(false)
 const error = ref('')
 let disposed = false
+
+async function loadCsv(number: number) {
+  busy.value = true
+  error.value = ''
+  try {
+    const query = params({ report_id: report, version, limit: pageSize, offset: (number - 1) * pageSize })
+    csv.value = await api<Csv>(path + '/csv' + query)
+    currentPage.value = number
+  } catch (err) { error.value = errorText(err) } finally { busy.value = false }
+}
 
 onMounted(async () => {
   busy.value = true
@@ -28,7 +41,7 @@ onMounted(async () => {
     if (disposed) return
     attachment.value = metadata
     if (metadata.mime === 'text/csv') {
-      csv.value = await api<Csv>(path + '/csv' + access)
+      await loadCsv(1)
     } else {
       const file = await blob(path + '/content' + access)
       if (!disposed) source.value = URL.createObjectURL(file)
@@ -53,9 +66,11 @@ async function download() {
   <section v-loading="busy" class="panel file-panel">
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <template v-if="csv">
-      <p class="muted">显示 {{ csv.rows.length }} / {{ csv.total_rows }} 行</p>
+      <p class="muted"><template v-if="csv.rows.length">第 {{ firstRow }}<template v-if="csv.rows.length > 1">–{{ firstRow + csv.rows.length - 1 }}</template> 行，</template>共 {{ csv.total_rows }} 行</p>
       <div class="csv-scroll"><table class="csv-table"><thead><tr><th v-for="(name, idx) in csv.headers" :key="idx">{{ name }}</th></tr></thead>
         <tbody><tr v-for="(row, ridx) in csv.rows" :key="ridx"><td v-for="(value, idx) in row" :key="idx">{{ value }}</td></tr></tbody></table></div>
+      <el-pagination v-if="csv.total_rows > pageSize" class="pagination" :current-page="currentPage" :page-size="pageSize"
+                     :total="csv.total_rows" :disabled="busy" layout="prev, pager, next" @update:current-page="loadCsv" />
     </template>
     <img v-else-if="source && attachment?.mime.startsWith('image/')" class="file-image" :src="source" :alt="filename" />
     <iframe v-else-if="source && attachment?.mime === 'application/pdf'" class="pdf" :src="source" :title="filename" />

@@ -46,7 +46,7 @@
 | `POST /assets` | 上传，字段名 `file`，单文件 5 MiB，HTTP 201 | asset.upload |
 | `GET /assets/{id}` | 文件名、类型和大小。可传 `report_id` 与 `version` | 所有者或关联报告权限 |
 | `GET /assets/{id}/content` | 读取文件，可传 `report_id`、`version`、`download=true` | 所有者或关联报告权限 |
-| `GET /assets/{id}/csv` | CSV 表头、前 100 行与总行数，可传 `report_id` 与 `version` | 所有者或关联报告权限 |
+| `GET /assets/{id}/csv` | 返回 `headers`、`rows` 和 `total_rows`。支持 `limit`（默认 100）和 `offset`，空行跳过，带引号的多行字段计为一条记录。可传 `report_id` 与 `version` | 所有者或关联报告权限 |
 | `GET /access` | 查看用户、角色与权限范围 | user.manage |
 | `PUT /access/users/{id}/roles` | 替换目标用户角色，接收 `{"roles":["analyst"]}` | user.manage |
 | `GET /audit` | 操作审计分页，可用 `action=access.denied` 按动作筛选 | audit.read |

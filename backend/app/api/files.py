@@ -21,7 +21,7 @@ router = APIRouter(tags=["文件"])
 MAX_BYTES = 5 * 1024 * 1024
 TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".pdf": "application/pdf", ".csv": "text/csv"}
 
-def csv_rows(content, limit=100):
+def csv_rows(content, limit=100, offset=0):
     text = content.decode("utf-8-sig")
     if "\0" in text:
         raise ValueError("Binary CSV")
@@ -36,9 +36,9 @@ def csv_rows(content, limit=100):
             continue
         if len(row) != len(head):
             raise ValueError("CSV row length does not match header")
-        count += 1
-        if len(preview) < limit:
+        if count >= offset and len(preview) < limit:
             preview.append(row)
+        count += 1
     return {"headers": head, "rows": preview, "total_rows": count}
 
 def inspect(filename, content):
@@ -147,8 +147,8 @@ def content(asset_id: int, request: Request, session: Db, actor: Identity, repor
 
 @router.get("/assets/{asset_id}/csv", response_model=CsvPreview)
 def preview_csv(asset_id: int, request: Request, session: Db, actor: Identity, report_id: int | None = None,
-                version: int | None = None):
+                version: int | None = None, limit: Limit = 100, offset: Offset = 0):
     file, data = load_file(request, session, actor, asset_id, report_id, version)
     if file["mime"] != "text/csv":
         raise HTTPException(415, "只有 CSV 文件可以使用表格预览。")
-    return csv_rows(data)
+    return csv_rows(data, limit, offset)

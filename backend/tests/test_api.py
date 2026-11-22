@@ -218,6 +218,21 @@ def test_assets_page_is_private_and_supports_reuse(client, auth, body):
         report_id = make_report(client, owner, {**body, "title": title, "asset_ids": [recent["id"]]})
         assert client.get(f"/api/reports/{report_id}", headers=owner).json()["assets"] == [recent]
 
+def test_csv_preview_pages_logical_records_and_preserves_the_original_file(client, auth):
+    owner = auth()
+    lines = [f"row-{number},{number}" for number in range(100)]
+    source = ('\ufeffchannel,count\r\n' + '\r\n'.join(lines) + '\r\n\r\n"two\r\nlines",100\r\n').encode()
+    uploaded = client.post("/api/assets", headers=owner, files={"file": ("detail.csv", source)})
+    assert uploaded.status_code == 201
+    path = f"/api/assets/{uploaded.json()['id']}"
+    first = client.get(path + "/csv", headers=owner).json()
+    assert first["headers"] == ["channel", "count"] and len(first["rows"]) == 100
+    last = client.get(path + "/csv", headers=owner, params={"limit": 25, "offset": 100}).json()
+    assert last == {"headers": first["headers"], "rows": [["two\r\nlines", "100"]], "total_rows": 101}
+    assert client.get(path + "/csv?offset=101", headers=owner).json()["rows"] == []
+    assert client.get(path + "/csv?offset=100", headers=auth("overseas")).status_code == 403
+    assert client.get(path + "/content?download=true", headers=owner).content == source
+
 def test_csv_attachment_is_authorized_against_version(client, auth, body):
     headers = auth()
     file = client.post("/api/assets", headers=headers, files={"file": ("数据.csv", "渠道,订单\n官网,3\n".encode())}).json()
