@@ -27,6 +27,7 @@ const target = ref<number>()
 const comparison = ref<VersionDiff>()
 const reportDiffFields = computed(() => comparison.value?.changes.filter(change => change.field !== 'asset_ids') ?? [])
 const compareError = ref('')
+const comparing = ref(false)
 const loading = ref(false)
 const busy = ref(false)
 const error = ref('')
@@ -58,6 +59,7 @@ function diffStyle(line: string, index: number) {
   return ''
 }
 let previewRequest = 0
+let comparisonRequest = 0
 
 async function loadVersions() {
   const history = await api<Page<VersionRow>>(path + '/versions' + params({ limit: 10, offset: (historyPage.value - 1) * 10 }))
@@ -89,7 +91,16 @@ onMounted(async () => {
   window.addEventListener('beforeprint', beforePrint)
   window.addEventListener('afterprint', afterPrint)
   await load()
-  if (report.value) await previewRouteVersion()
+  if (!report.value) return
+  await previewRouteVersion()
+  const from = versionParam(route.query.base)
+  const to = versionParam(route.query.target)
+  if (from !== undefined && to !== undefined && from !== to) {
+    base.value = from
+    target.value = to
+    compareOpen.value = true
+    void compare()
+  }
 })
 onUnmounted(() => {
   window.removeEventListener('beforeprint', beforePrint)
@@ -97,10 +108,12 @@ onUnmounted(() => {
 })
 watch(() => route.query.version, () => { if (report.value) void previewRouteVersion() })
 
+function versionParam(value: unknown) {
+  const version = typeof value === 'string' ? Number(value) : 0
+  return Number.isSafeInteger(version) && version > 0 ? version : undefined
+}
 function previewRouteVersion() {
-  const version = Number(route.query.version)
-  if (typeof route.query.version === 'string' && Number.isSafeInteger(version) && version > 0) return preview(version)
-  return preview(null)
+  return preview(versionParam(route.query.version) ?? null)
 }
 function selectVersion(number: number | null) {
   return router.replace({ query: { ...route.query, version: number?.toString() } })
@@ -134,11 +147,26 @@ function openCompare() {
   compareError.value = ''
 }
 async function compare() {
+  const request = ++comparisonRequest
+  const from = base.value
+  const to = target.value
   compareError.value = ''
   comparison.value = undefined
-  if (!base.value || !target.value || base.value === target.value) { compareError.value = '请输入两个不同的版本号。'; return }
-  try { comparison.value = await api<VersionDiff>(path + '/versions/diff' + params({ base: base.value, target: target.value })) }
-  catch (err) { compareError.value = errorText(err) }
+  if (!from || !to || from === to) { compareError.value = '请输入两个不同的版本号。'; return }
+  comparing.value = true
+  try {
+    await router.replace({ query: { ...route.query, base: String(from), target: String(to) } })
+    const result = await api<VersionDiff>(path + '/versions/diff' + params({ base: from, target: to }))
+    if (request === comparisonRequest) comparison.value = result
+  } catch (err) { if (request === comparisonRequest) compareError.value = errorText(err) }
+  finally { if (request === comparisonRequest) comparing.value = false }
+}
+function closeCompare() {
+  comparisonRequest++
+  comparing.value = false
+  if (route.query.base !== undefined || route.query.target !== undefined) {
+    void router.replace({ query: { ...route.query, base: undefined, target: undefined } })
+  }
 }
 async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', number?: number) {
   const headers = report.value ? { 'If-Match': report.value.etag } : undefined
@@ -228,12 +256,13 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
       </div>
     </template>
   </div>
-  <el-dialog v-model="compareOpen" title="版本对比" width="min(760px, 94vw)">
-    <div class="compare-controls"><label>基准版本 <el-input-number v-model="base" :min="1" :max="report?.current_version ?? 1" /></label>
-      <label>目标版本 <el-input-number v-model="target" :min="1" :max="report?.current_version ?? 1" /></label>
-      <el-button type="primary" @click="compare">开始对比</el-button></div>
+  <el-dialog v-model="compareOpen" title="版本对比" width="min(760px, 94vw)" @close="closeCompare">
+    <div class="compare-controls"><label>基准版本 <el-input-number v-model="base" :min="1" :max="report?.current_version ?? 1" :disabled="comparing" /></label>
+      <label>目标版本 <el-input-number v-model="target" :min="1" :max="report?.current_version ?? 1" :disabled="comparing" /></label>
+      <el-button type="primary" :loading="comparing" @click="compare">开始对比</el-button></div>
     <el-alert v-if="compareError" :title="compareError" type="error" :closable="false" />
     <template v-if="comparison">
+      <p class="muted">当前结果 · v{{ comparison.base }} 与 v{{ comparison.target }}</p>
       <template v-for="group in [{ title: '报告字段', rows: reportDiffFields }, { title: '查询条件', rows: comparison.query_changes }]" :key="group.title">
         <template v-if="group.rows.length">
           <h3 class="content-diff-heading">{{ group.title }}</h3>
