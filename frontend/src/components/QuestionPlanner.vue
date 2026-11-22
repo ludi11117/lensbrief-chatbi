@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessageSquareText } from 'lucide-vue-next'
+import { MessageSquareText } from '@lucide/vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { api, errorText } from '../api'
 import { scopeText, type QueryPlan, type ReportQueryScope } from '../types'

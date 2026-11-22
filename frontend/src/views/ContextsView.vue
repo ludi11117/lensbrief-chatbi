@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { Plus } from 'lucide-vue-next'
+import { Plus } from '@lucide/vue'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { api, errorText, params } from '../api'
 import { hasGrant } from '../auth'

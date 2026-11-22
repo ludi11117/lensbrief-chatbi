@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessageSquareText } from 'lucide-vue-next'
+import { MessageSquareText } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 import { api, errorText, params } from '../api'
 import { dateText, type Feedback, type Page } from '../types'

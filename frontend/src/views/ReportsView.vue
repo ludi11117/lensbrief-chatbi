@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileBarChart2, FileCheck2, FilePenLine, Plus, Archive } from 'lucide-vue-next'
+import { FileBarChart2, FileCheck2, FilePenLine, Plus, Archive } from '@lucide/vue'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'

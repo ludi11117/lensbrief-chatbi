@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { Search } from '@lucide/vue'
 import { statusText } from '../types'
 defineProps<{ keyword: string; status: string }>()
 const emit = defineEmits<{

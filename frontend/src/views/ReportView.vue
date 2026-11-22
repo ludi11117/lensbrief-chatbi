@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { FileText, GitCompareArrows, History, Printer } from 'lucide-vue-next'
+import { FileText, GitCompareArrows, History, Printer } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, api, errorText, params } from '../api'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ScanLine } from 'lucide-vue-next'
+import { ScanLine } from '@lucide/vue'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { signIn } from '../auth'

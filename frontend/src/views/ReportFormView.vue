@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { FileUp, Play, Sparkles, X } from 'lucide-vue-next'
+import { FileUp, Play, Sparkles, X } from '@lucide/vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, api, errorText, params } from '../api'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download } from 'lucide-vue-next'
+import { Download } from '@lucide/vue'
 import { computed, defineAsyncComponent } from 'vue'
 import { changeUnit, comparisonRows } from '../comparison'
 import { downloadBlob, resultCsv } from '../download'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, BookOpen, ChevronDown, Database, FileBarChart2, Folders, ScanLine, ShieldCheck } from 'lucide-vue-next'
+import { Activity, BookOpen, ChevronDown, Database, FileBarChart2, Folders, ScanLine, ShieldCheck } from '@lucide/vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { hasGrant, signOut, user } from './auth'

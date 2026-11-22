@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, FileText } from 'lucide-vue-next'
+import { Download, FileText } from '@lucide/vue'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, blob, errorText, params } from '../api'
