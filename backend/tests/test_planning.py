@@ -40,6 +40,17 @@ def test_scoped_default_window_and_implicit_year(client, auth):
     assert "2026 年" in month["notes"][0]
     assert plan(client, auth("admin"), "2026年10月按渠道看GMV").json()["scope"] == "department"
 
+@pytest.mark.parametrize(("question", "start", "end"), [
+    ("十月上旬按产品看成交额", "2026-10-01", "2026-10-10"),
+    ("按渠道看2026年10月中旬的销售额", "2026-10-11", "2026-10-20"),
+    ("2024年2月下旬按日看订单量", "2024-02-21", "2024-02-29"),
+    ("二月下旬按产品看退款率", "2026-02-21", "2026-02-28"),
+])
+def test_plan_month_parts_use_inclusive_calendar_dates(client, auth, question, start, end):
+    response = plan(client, auth(), question)
+    assert response.status_code == 200, response.text
+    assert (response.json()["start"], response.json()["end"]) == (start, end)
+
 def test_recent_days_use_latest_visible_data_day(app, client, auth, query_body):
     with app.state.session_factory() as session:
         session.execute(update(sales).where(sales.c.department_id == 2, sales.c.day == "2026-10-31")
@@ -80,6 +91,8 @@ def test_period_comparison_can_be_planned_inherited_and_cleared(client, auth):
     "2026-10-15 至 2026-10-01 按渠道看销售额", "2026-13-01 按渠道看销售额",
     "2026年11月2日按渠道看销售额", "2026年9月和10月按渠道看销售额",
     "最近367天按产品看退款率", "最近一周按产品看退款率", "十月和最近7天按渠道看销售额",
+    "十月上旬和下旬按渠道看销售额", "十月最后一周按渠道看销售额", "十月十一日按产品看退款率",
+    "下旬按产品看退款率", "十月底按渠道看销售额", "2026-10-02到下旬按渠道看销售额",
     "按产品看抖音成交额", "按产品看官网直营的成交额", "按部门查询2026年10月经销商成交额",
 ])
 def test_ambiguous_invalid_or_unsupported_questions_rejected(client, auth, question):

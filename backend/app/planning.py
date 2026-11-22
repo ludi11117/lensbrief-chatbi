@@ -20,9 +20,10 @@ DIMENSIONS = {
     "department": r"部门|团队",
 }
 MONTH_NAMES = ("一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二")
-MONTHS = re.compile(r"(?<!\d)(?:(\d{4})\s*年\s*)?(\d{1,2}|十[一二]?|[一二三四五六七八九])\s*月")
+MONTHS = re.compile(r"(?<!\d)(?:(\d{4})\s*年\s*)?(\d{1,2}|十[一二]?|[一二三四五六七八九])\s*月(?:\s*([上中下]旬))?")
 ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 RECENT_DAYS = re.compile(r"(?:最近|过去|近)\s*(\d{1,3})\s*(?:天|个?自然日)")
+OTHER_CALENDAR_PART = re.compile(r"旬|半个?月|周|星期|礼拜|(?:\d+|[一二三四五六七八九十廿]+)\s*[日号]")
 FOLLOW_UP = re.compile(r"^(?:那|然后)?(?:改成|改为|改按|改看|换成|换为|换按|再看|继续看|沿用)")
 UNSUPPORTED = re.compile(
     r"同比|环比|增长率|增幅|利润|净收入|成本|退款数|退款额|客单价|用户数|占比|排行前|top\s*\d|"
@@ -90,10 +91,12 @@ def requested_window(text, anchor, latest):
     months = list(MONTHS.finditer(text))
     recent = list(RECENT_DAYS.finditer(text))
     remainder = RECENT_DAYS.sub("", text)
+    if OTHER_CALENDAR_PART.search(MONTHS.sub("", remainder)) or re.search(r"月\s*[初底末]", text):
+        raise PlanError("请指定一个整月、上中下旬中的一旬，或用 YYYY-MM-DD 至 YYYY-MM-DD 指定起止日期。")
     if re.search(r"最近|过去|(?:近|前)\s*\d", remainder):
         raise PlanError("最近区间请使用“最近 7 天”一类的格式。")
     if recent:
-        if iso or months or len(recent) > 1 or re.search(r"\d+\s*[天日号]|周", remainder):
+        if iso or months or len(recent) > 1 or re.search(r"\d+\s*天", remainder):
             raise PlanError("请指定一个连续的查询日期区间。")
         days = int(recent[0][1])
         if not 1 <= days <= 366:
@@ -111,20 +114,22 @@ def requested_window(text, anchor, latest):
         except ValueError:
             raise PlanError("请输入有效日期，格式为 YYYY-MM-DD。") from None
     if months:
-        if len(months) > 1 or re.search(r"\d+\s*[日号]", text):
-            raise PlanError("月份查询只支持单月；具体日期区间请使用 YYYY-MM-DD 至 YYYY-MM-DD。")
-        year_text, month_text = months[0].groups()
+        if len(months) > 1:
+            raise PlanError("请指定一个连续的查询日期区间。")
+        year_text, month_text, part = months[0].groups()
         if not year_text and anchor is None:
             raise PlanError("请在月份前注明四位年份。")
         year = int(year_text) if year_text else anchor.year
         month = int(month_text) if month_text.isdecimal() else MONTH_NAMES.index(month_text) + 1
         try:
-            return (date(year, month, 1), date(year, month, monthrange(year, month)[1])), (
+            last_day = monthrange(year, month)[1]
+            start_day, end_day = {"上旬": (1, 10), "中旬": (11, 20), "下旬": (21, last_day)}.get(part, (1, last_day))
+            return (date(year, month, start_day), date(year, month, end_day)), (
                 None if year_text else f"未指定年份，使用 {year} 年。"
             )
         except ValueError:
             raise PlanError("请输入有效的年份和月份。") from None
-    if re.search(r"\d{4}\s*[-年]|\d+\s*[日号]|周|月初|月末", text):
+    if re.search(r"\d{4}\s*[-年]", text):
         raise PlanError("请使用整月或 YYYY-MM-DD 格式指定日期。")
     return None, None
 
