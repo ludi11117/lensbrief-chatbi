@@ -23,7 +23,9 @@ docker compose up --build -d --wait
 
 ### Windows 本地启动
 
-准备 Python 3.13、Node.js 22.12 或更新的 22.x 版本，以及 PowerShell 7.3 以上，在仓库根目录运行 `pwsh -File .\start.ps1`。脚本安装依赖、构建 Vue、执行迁移和播种，再启动带前端静态文件的 FastAPI。默认在 `D:\CodexWork\cache` 和 `D:\CodexWork\temp` 保存缓存和临时文件，可用 `-CacheRoot` 与 `-TempRoot` 修改。用 `-Port 8081` 可更改端口。
+准备 Python 3.13、Node.js 22.12 或更新的 22.x 版本，以及 PowerShell 7.3 以上，在仓库根目录运行 `pwsh -File .\start.ps1`。脚本安装依赖、构建 Vue、执行迁移和播种，再启动带前端静态文件的 FastAPI。用 `-Port 8081` 可更改端口。
+
+存在 D 盘时，缓存和临时文件默认放在 `D:\CodexWork\cache` 与 `D:\CodexWork\temp`。没有 D 盘的机器使用仓库下的 `.runtime` 目录。可用 `-CacheRoot` 与 `-TempRoot` 指定其他位置。
 
 安装过依赖后，运行 `pwsh -File .\start.ps1 -Offline` 可跳过安装，使用现有 Python 和前端依赖构建并启动。这个开关会启用 Mock 草稿与规则解析。
 

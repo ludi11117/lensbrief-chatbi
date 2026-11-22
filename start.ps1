@@ -1,11 +1,15 @@
 param(
     [ValidateRange(1024, 65535)][int]$Port = 8080,
-    [string]$CacheRoot = 'D:\CodexWork\cache',
-    [string]$TempRoot = 'D:\CodexWork\temp',
+    [string]$CacheRoot,
+    [string]$TempRoot,
     [switch]$Offline
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
+
+$runtimeRoot = if (Test-Path -LiteralPath 'D:\') { 'D:\CodexWork' } else { Join-Path $PSScriptRoot '.runtime' }
+if (-not $CacheRoot) { $CacheRoot = Join-Path $runtimeRoot 'cache' }
+if (-not $TempRoot) { $TempRoot = Join-Path $runtimeRoot 'temp' }
 
 Push-Location $PSScriptRoot
 try {
