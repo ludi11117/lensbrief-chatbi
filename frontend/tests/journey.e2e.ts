@@ -30,6 +30,12 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
     name: '渠道样例.csv', mimeType: 'text/csv', buffer: Buffer.from('渠道,订单量\n官网,12\n电商平台,29\n'),
   })
   await expect(page.getByText('渠道样例.csv')).toBeVisible()
+  await page.locator('input[type=file]').setInputFiles({
+    name: '预览样例.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAADAAAAAUCAIAAABEXSnwAAAAPUlEQVR4nM3OQQEAIBCAMKSOlQxoTP9XQJZga59LicRIjMRIjMRIjMRIjMRIjMRIjMRIjMRIjMRIjL8D0wNURwFXE9BLDAAAAABJRU5ErkJggg==', 'base64'),
+  })
+  await expect(page.getByText('预览样例.png')).toBeVisible()
   await page.getByRole('button', { name: '保存报告' }).click()
   await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
   const reportUrl = page.url()
@@ -82,12 +88,25 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await expect(page.getByRole('heading', { name: '版本记录' })).toBeHidden()
   await expect(page.getByText('核对渠道归类', { exact: true })).toBeHidden()
   await page.emulateMedia({ media: 'screen' })
+  const fileRequests: string[] = []
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (/^\/api\/assets\/\d+\/content$/.test(url.pathname)) fileRequests.push(url.search)
+  })
   await page.getByRole('link', { name: /渠道样例.csv/ }).click()
   await expect(page.getByRole('heading', { name: '文件预览' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '电商平台' })).toBeVisible()
+  expect(fileRequests).toHaveLength(0)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: '下载文件' }).click()
   expect((await download).suggestedFilename()).toBe('渠道样例.csv')
+  expect(fileRequests).toHaveLength(1)
+  await page.getByRole('link', { name: '返回报告', exact: true }).click()
+  await expect(page).toHaveURL(reportUrl + '?version=1')
+  await page.getByRole('link', { name: /预览样例.png/ }).click()
+  const image = page.getByRole('img', { name: '预览样例.png' })
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(48)
   await page.goto(reportUrl)
   await page.getByRole('button', { name: '归档', exact: true }).click()
   await page.getByRole('button', { name: '确认', exact: true }).click()

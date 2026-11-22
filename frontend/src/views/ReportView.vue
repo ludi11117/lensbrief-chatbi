@@ -186,7 +186,7 @@ async function perform(action: 'publish' | 'archive' | 'remove' | 'rollback', nu
             <h3>附件</h3>
             <RouterLink v-for="file in showing.assets" :key="file.id" class="attachment"
                         :to="{ name: 'asset', params: { asset: file.id }, query: {
-                          report: id, version: discussionVersion ?? undefined, filename: file.filename,
+                          report: id, version: discussionVersion ?? undefined,
                         } }">
               <FileText :size="17" /><span>{{ file.filename }}</span><strong>预览</strong>
             </RouterLink>

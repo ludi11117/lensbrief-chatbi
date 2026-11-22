@@ -218,10 +218,14 @@ def test_csv_attachment_is_authorized_against_version(client, auth, body):
     file = client.post("/api/assets", headers=headers, files={"file": ("数据.csv", "渠道,订单\n官网,3\n".encode())}).json()
     report_id = make_report(client, headers, {**body, "asset_ids": [file["id"]]})
     path = f"/api/assets/{file['id']}"
+    assert client.get(path, headers=headers).json() == file
+    assert client.get(path, headers=auth("manager")).status_code == 403
     assert client.get(path + "/content", headers=auth("manager")).status_code == 403
     do(client, f"/reports/{report_id}/publish", headers)
     client.put(f"/api/reports/{report_id}", headers=headers, json=body)
     params = {"report_id": report_id, "version": 1}
+    assert client.get(path, headers=auth("manager"), params=params).json() == file
+    assert client.get(path, headers=auth("overseas"), params=params).status_code == 403
     assert client.get(path + "/csv", headers=auth("manager"), params=params).json()["rows"] == [["官网", "3"]]
     assert client.get(path + "/content", headers=auth("overseas"), params=params).status_code == 403
     assert client.get(path + "/content", headers=headers, params={"report_id": report_id}).status_code == 403

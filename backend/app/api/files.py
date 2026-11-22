@@ -127,6 +127,12 @@ def load_file(request, session, actor, id_, report_id, version):
     except FileNotFoundError:
         raise HTTPException(404, "存储中没有找到该文件。") from None
 
+@router.get("/assets/{asset_id}", response_model=Asset)
+def asset_metadata(asset_id: int, response: Response, session: Db, actor: Identity,
+                   report_id: int | None = None, version: int | None = None):
+    response.headers["Cache-Control"] = "private, no-store"
+    return authorize(session, actor, asset_id, report_id, version)
+
 @router.get("/assets/{asset_id}/content")
 def content(asset_id: int, request: Request, session: Db, actor: Identity, report_id: int | None = None,
             version: int | None = None, download: bool = False):
