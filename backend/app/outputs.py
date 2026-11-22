@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel
@@ -53,6 +54,11 @@ class CatalogRow(BaseModel):
     code: str
     name: str
     description: str
+
+class DatasetWindow(BaseModel):
+    start: date | None
+    end: date | None
+    default_start: date | None
 
 class Metric(CatalogRow):
     dataset_id: int

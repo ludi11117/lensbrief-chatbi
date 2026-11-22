@@ -12,7 +12,9 @@ from ..auth import Db, Denied, Identity, SCOPE_RANK, scope_filter
 from ..db import begin_write, json_dump, utc_now
 from ..model_client import ModelConfigurationError, ModelResponseError, complete_json
 from ..models import datasets, departments, dimensions, metrics, query_logs, sales, users
-from ..outputs import CatalogRow, Dimension, GeneratedDraft, Metric, Page, QueryDetail, QueryLog, QueryPlan, QueryResult, QueryStatus
+from ..outputs import (
+    CatalogRow, DatasetWindow, Dimension, GeneratedDraft, Metric, Page, QueryDetail, QueryLog, QueryPlan, QueryResult, QueryStatus,
+)
 from ..planning import MissingAxes, PlanError, resolve_model_axes, resolve_question
 from ..schemas import DraftInput, DraftOutput, QueryInput, QueryPlanInput
 from .common import Limit, Offset, count, page, take
@@ -63,6 +65,20 @@ def channel_values(session, dataset_id, actor, scope):
         sales.c.dataset_id == dataset_id, scope_filter(sales, scope, actor)
     ).distinct().order_by(sales.c.channel)))
 
+def available_window(session, dataset_id, actor, scope):
+    bounds = session.execute(select(func.min(sales.c.day), func.max(sales.c.day)).where(
+        sales.c.dataset_id == dataset_id, scope_filter(sales, scope, actor)
+    )).one()
+    return tuple(date.fromisoformat(day) if day else None for day in bounds)
+
+@router.get("/datasets/{dataset_id}/date-window", response_model=DatasetWindow)
+def dataset_window(dataset_id: int, session: Db, actor: Identity, scope: Literal["own", "department"] | None = None):
+    selected = report_scope(actor, dataset_id, scope)
+    take(session, datasets, dataset_id, "数据集")
+    start, end = available_window(session, dataset_id, actor, selected)
+    default_start = end - timedelta(days=min(365, (end - start).days)) if start is not None and end is not None else None
+    return {"start": start, "end": end, "default_start": default_start}
+
 @router.post("/queries/plan", response_model=QueryPlan)
 def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Identity):
     scope = report_scope(actor, payload.dataset_id, payload.scope)
@@ -80,10 +96,7 @@ def plan_query(payload: QueryPlanInput, request: Request, session: Db, actor: Id
         ).order_by(query_logs.c.created_at.desc(), query_logs.c.id.desc()).limit(1))
         if prior:
             previous = json.loads(prior)
-    bounds = session.execute(select(func.min(sales.c.day), func.max(sales.c.day)).where(
-        sales.c.dataset_id == payload.dataset_id, scope_filter(sales, scope, actor)
-    )).one()
-    available = tuple(date.fromisoformat(day) if day else None for day in bounds)
+    available = available_window(session, payload.dataset_id, actor, scope)
     known_metrics = dict(session.execute(select(metrics.c.code, metrics.c.name).where(
         metrics.c.dataset_id == payload.dataset_id, metrics.c.code.in_(METRIC_COLUMNS))).all())
     known_dimensions = dict(session.execute(select(dimensions.c.code, dimensions.c.name).where(

@@ -28,6 +28,7 @@
 | `GET /datasets` | 数据集目录分页 | dataset.read |
 | `GET /datasets/{id}/metrics` | 指标编码、名称、单位与口径分页 | dataset.read |
 | `GET /datasets/{id}/dimensions` | 维度编码、名称与口径分页 | dataset.read |
+| `GET /datasets/{id}/date-window` | 指定范围内的可用数据首末日期及默认起点，可传 `scope` | dataset.query |
 | `POST /queries/plan` | 将提问解析成可确认的指标、维度、日期和范围 | dataset.query，上下文限本人 |
 | `POST /queries` | 执行聚合并写查询日志，返回查询 ID 和结果，HTTP 201 | dataset.query |
 | `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end`、`status` | query.read，上下文筛选限本人 |
@@ -74,6 +75,8 @@
 对渠道、产品或部门分组可发送 `compare_previous: true`。服务端使用当前范围前方紧邻的等长区间，在相同权限和指标口径下汇总，并返回 `comparison` 内的 `start`、`end`、`rows`。未勾选对照时该字段为 `null`。查询日志的 `row_count` 仍为本期行数，报告快照会保存两期。
 
 `GET /datasets/{id}/dimensions` 的 `channel` 维度可返回 `values`。维度目录和问题解析可传入 `scope=own` 或 `department`，并按该范围返回可用渠道。查询可传其中一个值到可选的 `channel` 字段，两期对照使用相同筛选。该字段也会保存在查询结果和报告快照。
+
+`GET /datasets/{id}/date-window` 使用相同范围，返回 `start`、`end` 和 `default_start`。默认区间以可见数据末日结束，最长 366 天。范围内无数据时三项均为 `null`。
 
 ### 解析自然语言问题
 

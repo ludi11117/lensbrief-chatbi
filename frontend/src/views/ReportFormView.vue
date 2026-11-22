@@ -11,6 +11,7 @@ import QuestionPlanner from '../components/QuestionPlanner.vue'
 import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type ReportQueryScope, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string; values?: string[] }
+interface DatasetWindow { start: string | null; end: string | null; default_start: string | null }
 const route = useRoute()
 const router = useRouter()
 const reportId = computed(() => route.params.id ? Number(route.params.id) : null)
@@ -34,10 +35,11 @@ const contexts = computed(() => {
 const selectedContext = computed(() => contexts.value.find(item => item.id === contextId.value))
 const metricList = ref<CatalogEntry[]>([])
 const dimensionList = ref<CatalogEntry[]>([])
+const dateWindow = ref<DatasetWindow>()
 const channels = computed(() => dimensionList.value.find(item => item.code === 'channel')?.values ?? [])
 const canQueryDepartment = computed(() => ['department', 'all'].includes(user.value?.grants['dataset.query'] ?? ''))
 const queryScope = ref<ReportQueryScope>(canQueryDepartment.value ? 'department' : 'own')
-const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '2026-10-01', end: '2026-10-31', channel: null as string | null })
+const fields = reactive({ metric: 'gmv', dimension: 'channel', start: '', end: '', channel: null as string | null })
 const waiting = ref(false)
 const saving = ref(false)
 const querying = ref(false)
@@ -82,19 +84,27 @@ async function refreshCatalog(id: number | null, datasetChanged: boolean) {
     contextItems.value = []
   }
   dimensionList.value = []
+  dateWindow.value = undefined
   if (!id) return
   try {
-    const [metrics, dimensions, saved] = await Promise.all([
-      api<Page<CatalogEntry>>('/datasets/' + id + '/metrics'),
-      api<Page<CatalogEntry>>('/datasets/' + id + '/dimensions' + params({
-        scope: hasGrant('dataset.query') ? queryScope.value : undefined,
-      })),
-      hasGrant('dataset.query') ? api<Page<AnalysisContext>>('/contexts' + params({ dataset_id: id, archived: 'false', limit: 100 })) : null,
+    const canQuery = hasGrant('dataset.query')
+    const scope = params({ scope: canQuery ? queryScope.value : undefined })
+    const datasetPath = '/datasets/' + id
+    const [metrics, dimensions, saved, window] = await Promise.all([
+      api<Page<CatalogEntry>>(datasetPath + '/metrics'),
+      api<Page<CatalogEntry>>(datasetPath + '/dimensions' + scope),
+      canQuery ? api<Page<AnalysisContext>>('/contexts' + params({ dataset_id: id, archived: 'false', limit: 100 })) : null,
+      canQuery ? api<DatasetWindow>(datasetPath + '/date-window' + scope) : undefined,
     ])
     if (catalogRequest !== seq) return
     metricList.value = metrics.items
     dimensionList.value = dimensions.items
     contextItems.value = saved?.items ?? []
+    dateWindow.value = window
+    if (window?.default_start && window.end && !fields.start && !fields.end) {
+      fields.start = window.default_start
+      fields.end = window.end
+    }
     fields.metric = (datasetChanged ? metrics.items.find(item => item.name === result.value?.metric_name)?.code : undefined)
       ?? metrics.items.find(item => item.code === fields.metric)?.code ?? metrics.items[0]?.code ?? ''
     fields.dimension = (datasetChanged ? dimensions.items.find(item => item.name === result.value?.dimension_name)?.code : undefined)
@@ -168,6 +178,8 @@ onMounted(async () => {
 function changeDataset(value: number | null) {
   form.dataset_id = value ?? null
   fields.channel = null
+  fields.start = ''
+  fields.end = ''
   changeContext(null)
 }
 function changeContext(value: number | null) {
@@ -306,6 +318,7 @@ async function save() {
               <el-option v-for="channel in channels" :key="channel" :value="channel" :label="channel" />
             </el-select>
           </template>
+          <p v-if="dateWindow" class="muted">{{ dateWindow.start ? '可用数据日期 · ' + dateWindow.start + ' 至 ' + dateWindow.end : '当前范围暂无可用数据' }}</p>
           <div class="field-grid"><div><label for="start-day">开始日期</label><input id="start-day" v-model="fields.start" type="date" class="date-input" :disabled="planning || querying" /></div>
             <div><label for="end-day">结束日期</label><input id="end-day" v-model="fields.end" type="date" class="date-input" :disabled="planning || querying" /></div></div>
           <el-checkbox v-if="fields.dimension !== 'day'" v-model="comparePrevious" :disabled="querying || planning">对照上一期</el-checkbox>

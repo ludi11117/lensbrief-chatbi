@@ -19,6 +19,21 @@ def test_filter_values_respect_the_users_scope(client, auth, app, query_body):
     assert result.status_code == 201, result.text
     assert result.json()["rows"] == [{"label": "主管渠道", "value": 1999}]
 
+def test_dataset_date_window_respects_scope_and_caps_default_range(client, auth, app, query_body):
+    with app.state.session_factory.begin() as session:
+        session.execute(update(sales).where(sales.c.owner_id == 1, sales.c.day == "2026-10-01")
+                        .values(day="2024-01-01"))
+    route = "/api/datasets/1/date-window"
+    analyst = auth()
+    window = client.get(route, headers=analyst).json()
+    assert window == {"start": "2024-01-01", "end": "2026-10-31", "default_start": "2025-10-31"}
+    query = {**query_body, "start": window["default_start"], "end": window["end"]}
+    assert client.post("/api/queries", headers=analyst, json=query).status_code == 201
+    assert client.get(route, headers=analyst, params={"scope": "department"}).status_code == 403
+    assert client.get(route, headers=auth("admin"), params={"scope": "own"}).json() == {
+        "start": None, "end": None, "default_start": None,
+    }
+
 def test_same_channel_filter_applies_to_both_comparison_periods(client, auth, query_body):
     headers = auth()
     params = {**query_body, "start": "2026-10-15", "end": "2026-10-21", "compare_previous": True}
