@@ -12,8 +12,8 @@
   "samples_per_case": 100,
   "cases": {
     "all_first": {
-      "p50_ms": 0.5352,
-      "p95_ms": 0.5833,
+      "p50_ms": 0.6601,
+      "p95_ms": 0.9568,
       "total": 10000,
       "returned": 20,
       "offset": 0,
@@ -29,8 +29,8 @@
       }
     },
     "all_deep": {
-      "p50_ms": 4.1157,
-      "p95_ms": 4.6531,
+      "p50_ms": 4.6431,
+      "p95_ms": 5.786,
       "total": 10000,
       "returned": 20,
       "offset": 9000,
@@ -46,8 +46,8 @@
       }
     },
     "status_first": {
-      "p50_ms": 0.4478,
-      "p95_ms": 0.5457,
+      "p50_ms": 0.5877,
+      "p95_ms": 0.8395,
       "total": 3333,
       "returned": 20,
       "offset": 0,
@@ -63,8 +63,8 @@
       }
     },
     "status_deep": {
-      "p50_ms": 1.343,
-      "p95_ms": 1.8803,
+      "p50_ms": 1.7153,
+      "p95_ms": 2.19,
       "total": 3333,
       "returned": 20,
       "offset": 3000,
@@ -80,8 +80,8 @@
       }
     },
     "keyword_first": {
-      "p50_ms": 11.6598,
-      "p95_ms": 12.5237,
+      "p50_ms": 12.5753,
+      "p95_ms": 14.7901,
       "total": 2000,
       "returned": 20,
       "offset": 0,

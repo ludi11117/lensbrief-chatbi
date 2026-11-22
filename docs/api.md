@@ -2,7 +2,7 @@
 
 请求以 `/api` 为前缀。Swagger 位于 `/api/docs`，OpenAPI JSON 位于 `/api/openapi.json`。除登录和健康检查外，在请求头发送 `Authorization: Bearer <token>`。应用按 JWT 主体读取当前身份与权限。
 
-列表返回 `{items, total, limit, offset}`。所有列表分页接受 `limit=1..100`、`offset>=0`，超过尾页返回空列表和筛选后的总数。更新接口使用 JSON，文件上传使用 `multipart/form-data`。
+列表返回 `{items, total, limit, offset}`。所有分页接口接受 1 至 100 的 `limit` 和非负的 64 位有符号整数 `offset`。超出尾页返回空列表和筛选后的总数，参数越界返回 422。每次响应中的记录和总数取自同一个数据库快照。更新接口使用 JSON，文件上传使用 `multipart/form-data`。
 
 ## 接口清单
 

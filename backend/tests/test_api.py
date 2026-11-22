@@ -75,7 +75,7 @@ def test_same_department_and_cross_department_403_is_audited(client, auth):
     assert client.get("/api/reports", headers=auth()).json()["total"] == 1
     assert client.get("/api/reports", headers=auth("admin")).json()["total"] == 2
 
-@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"status": "pending"}])
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"offset": 2**63}, {"status": "pending"}])
 def test_invalid_pagination_or_status(client, auth, params):
     assert client.get("/api/reports", headers=auth(), params=params).status_code == 422
 
@@ -85,6 +85,8 @@ def test_pagination_filters_and_soft_delete(client, auth, body):
     first = client.get("/api/reports", headers=headers, params={"limit": 1}).json()
     second = client.get("/api/reports", headers=headers, params={"limit": 1, "offset": 1}).json()
     out = client.get("/api/reports", headers=headers, params={"limit": 1, "offset": 2}).json()
+    furthest = client.get("/api/reports", headers=headers, params={"offset": 2**63 - 1}).json()
+    assert furthest["items"] == [] and furthest["total"] == 2
     assert first["total"] == second["total"] == out["total"] == 2
     assert first["items"][0]["id"] == report_id
     assert second["items"][0]["id"] != report_id and out["items"] == []

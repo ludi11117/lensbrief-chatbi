@@ -1,6 +1,27 @@
 import pytest
+from sqlalchemy import event
 
 from backend.app.api import reports
+
+
+def test_report_page_counts_the_same_snapshot_as_its_rows(app, client, auth, body):
+    owner = auth()
+    with app.state.engine.connect() as connection:
+        assert connection.exec_driver_sql("PRAGMA journal_mode=WAL").scalar() == "wal"
+
+    def add_before_count(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("SELECT count("):
+            assert client.post("/api/reports", headers=owner, json=body).status_code == 201
+
+    event.listen(app.state.engine, "before_cursor_execute", add_before_count)
+    try:
+        response = client.get("/api/reports", headers=owner)
+    finally:
+        event.remove(app.state.engine, "before_cursor_execute", add_before_count)
+    assert response.status_code == 200
+    page = response.json()
+    assert page["total"] == len(page["items"]) == 1
+    assert client.get("/api/reports", headers=owner).json()["total"] == 2
 
 
 def test_detail_keeps_body_attachments_and_etag_in_one_snapshot(app, client, auth, body, monkeypatch):
