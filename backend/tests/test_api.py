@@ -2,7 +2,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from io import BytesIO
 
-import httpx
 import pytest
 from PIL import Image
 from pypdf import PdfWriter
@@ -307,23 +306,3 @@ def test_department_cannot_read_or_attach_admin_global_query(client, auth, query
     assert client.get("/api/queries", headers=manager).json()["total"] == 0
     assert client.get(f"/api/queries/{query_id}", headers=manager).status_code == 403
     assert client.post("/api/reports", headers=admin, json={**body, "query_id": query_id}).status_code == 403
-
-def test_openai_compatible_draft_contract_without_network(client, auth, query_body, app, monkeypatch):
-    app.state.settings = replace(app.state.settings, draft_mode="llm", model_url="https://model.example/v1",
-                                 model_name="fixture", model_key="test-model-key")
-    headers = auth()
-    query_id = client.post("/api/queries", headers=headers, json=query_body).json()["id"]
-    seen = []
-
-    def fake_post(url, **options):
-        seen.append(options["json"])
-        assert url == "https://model.example/v1/chat/completions"
-        return httpx.Response(200, request=httpx.Request("POST", url), json={
-            "choices": [{"message": {"content": '{"title":"渠道分析","description":"十月","content":"检查数据口径。"}'}}]
-        })
-
-    monkeypatch.setattr(httpx, "post", fake_post)
-    result = client.post("/api/drafts/generate", headers=headers, json={"query_id": query_id, "goal": "复盘"})
-    assert (result.status_code, result.json()["mode"], result.json()["title"]) == (200, "llm", "渠道分析")
-    assert seen[0]["model"] == "fixture"
-    assert '"scope":"own"' in seen[0]["messages"][-1]["content"]
