@@ -21,8 +21,16 @@ const media = ref<Asset[]>([])
 const result = ref<QueryResult | null>(null)
 const queryId = ref<number | null>(null)
 const datasets = ref<Dataset[]>([])
-const contexts = ref<AnalysisContext[]>([])
+const contextItems = ref<AnalysisContext[]>([])
+const linkedContext = ref<AnalysisContext>()
 const contextId = ref<number | null>(null)
+const contexts = computed(() => {
+  const linked = linkedContext.value
+  if (linked && linked.dataset_id === form.dataset_id && !contextItems.value.some(item => item.id === linked.id)) {
+    return [...contextItems.value, linked]
+  }
+  return contextItems.value
+})
 const selectedContext = computed(() => contexts.value.find(item => item.id === contextId.value))
 const metricList = ref<CatalogEntry[]>([])
 const dimensionList = ref<CatalogEntry[]>([])
@@ -71,7 +79,7 @@ async function refreshCatalog(id: number | null, datasetChanged: boolean) {
   const seq = ++catalogRequest
   if (datasetChanged) {
     metricList.value = []
-    contexts.value = []
+    contextItems.value = []
   }
   dimensionList.value = []
   if (!id) return
@@ -86,7 +94,7 @@ async function refreshCatalog(id: number | null, datasetChanged: boolean) {
     if (catalogRequest !== seq) return
     metricList.value = metrics.items
     dimensionList.value = dimensions.items
-    contexts.value = saved?.items ?? []
+    contextItems.value = saved?.items ?? []
     fields.metric = (datasetChanged ? metrics.items.find(item => item.name === result.value?.metric_name)?.code : undefined)
       ?? metrics.items.find(item => item.code === fields.metric)?.code ?? metrics.items[0]?.code ?? ''
     fields.dimension = (datasetChanged ? dimensions.items.find(item => item.name === result.value?.dimension_name)?.code : undefined)
@@ -106,6 +114,13 @@ function hydrateResult(snapshot: QueryResult, id: number | null) {
   comparePrevious.value = Boolean(snapshot.comparison)
 }
 
+function useLinkedContext(context: AnalysisContext) {
+  form.dataset_id = context.dataset_id
+  linkedContext.value = context
+  contextId.value = context.id
+  goal.value = context.objective
+}
+
 async function loadNewReportSource() {
   const sourceId = typeof route.query.fromQuery === 'string' ? Number(route.query.fromQuery) : 0
   if (Number.isSafeInteger(sourceId) && sourceId > 0) {
@@ -119,10 +134,7 @@ async function loadNewReportSource() {
     hydrateResult(source.result, source.id)
     if (source.context_id) {
       const context = await api<AnalysisContext>('/contexts/' + source.context_id)
-      if (!context.archived) {
-        contextId.value = context.id
-        goal.value = context.objective
-      }
+      if (!context.archived) useLinkedContext(context)
     }
     return
   }
@@ -130,9 +142,7 @@ async function loadNewReportSource() {
   if (fromContext) {
     const saved = await api<AnalysisContext>('/contexts/' + fromContext)
     if (saved.archived) throw new Error('请先恢复已归档的分析上下文。')
-    form.dataset_id = saved.dataset_id
-    contextId.value = saved.id
-    goal.value = saved.objective
+    useLinkedContext(saved)
   } else form.dataset_id = datasets.value[0]?.id ?? null
 }
 

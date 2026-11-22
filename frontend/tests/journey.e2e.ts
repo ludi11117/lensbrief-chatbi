@@ -246,6 +246,11 @@ test('个人上下文引用知识包并保留查询历史', async ({ page }) => 
   await page.reload()
   await expect(page.getByRole('dialog', { name: '查询记录 #' + queryId })).toBeVisible()
   await expect(page.getByRole('dialog').getByText(/耗时 \d+ ms/)).toBeVisible()
+  await page.route(url => url.pathname === '/api/contexts' && url.searchParams.has('dataset_id'), async route => {
+    const response = await route.fetch()
+    const options = await response.json() as { items: { title: string }[]; total: number }
+    await route.fulfill({ response, json: { ...options, items: options.items.filter(item => item.title !== title) } })
+  }, { times: 1 })
   await page.getByRole('link', { name: '用此结果新建报告' }).click()
   await expect(page.getByText(/来源 · 查询记录 #/)).toBeVisible()
   const sourceLink = page.getByRole('link', { name: '查询记录 #' + queryId })
