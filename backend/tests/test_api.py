@@ -202,12 +202,15 @@ def test_upload_size_limit(client, auth):
 
 def test_assets_page_is_private_and_supports_reuse(client, auth, body):
     owner = auth()
-    older = client.post("/api/assets", headers=owner, files={"file": ("older.csv", b"a\n1\n")}).json()
+    older = client.post("/api/assets", headers=owner, files={"file": ("older_100%.csv", b"a\n1\n")}).json()
     recent = client.post("/api/assets", headers=owner, files={"file": ("recent.csv", b"a\n2\n")}).json()
     for offset, expected in enumerate([[recent], [older], []]):
         result = client.get("/api/assets", headers=owner, params={"limit": 1, "offset": offset})
         assert result.json() == {"items": expected, "limit": 1, "offset": offset, "total": 2}
     assert client.get("/api/assets", headers=auth("admin")).json()["total"] == 0
+    assert client.get("/api/assets", headers=owner, params={"q": " % "}).json()["items"] == [older]
+    assert client.get("/api/assets", headers=owner, params={"q": "RECENT"}).json()["items"] == [recent]
+    assert client.get("/api/assets", headers=auth("manager"), params={"q": "recent"}).json()["total"] == 0
 
     for title in ("渠道复盘", "经营简报"):
         report_id = make_report(client, owner, {**body, "title": title, "asset_ids": [recent["id"]]})

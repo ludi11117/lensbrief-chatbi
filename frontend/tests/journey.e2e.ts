@@ -140,7 +140,22 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await page.getByLabel('报告标题').fill(title + ' · 复用附件')
   await page.getByRole('button', { name: '选择已有文件' }).click()
   const picker = page.getByRole('dialog', { name: '选择已上传的文件' })
-  await picker.getByRole('row', { name: /渠道样例.csv/ }).first().getByRole('button', { name: '添加', exact: true }).click()
+  await picker.getByRole('textbox', { name: '按文件名搜索' }).fill('渠道样例')
+  const matchingFiles = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/assets' && url.searchParams.get('q') === '渠道样例'
+  })
+  await picker.getByRole('button', { name: '搜索文件' }).click()
+  expect((await matchingFiles).status()).toBe(200)
+  await expect(picker.getByText('预览样例.png', { exact: true })).toHaveCount(0)
+  const matchingFile = picker.getByRole('row', { name: /渠道样例.csv/ }).first()
+  const fileOpened = page.waitForEvent('popup')
+  await matchingFile.getByRole('link', { name: '预览' }).click()
+  const filePage = await fileOpened
+  await expect(filePage.getByRole('cell', { name: '电商平台' })).toBeVisible()
+  await filePage.close()
+  await expect(page.getByLabel('报告标题')).toHaveValue(title + ' · 复用附件')
+  await matchingFile.getByRole('button', { name: '添加', exact: true }).click()
   await expect(picker).toBeHidden()
   await expect(page.getByRole('button', { name: '移除 渠道样例.csv' })).toBeVisible()
   await page.getByRole('button', { name: '保存报告' }).click()

@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from urllib.parse import quote
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, Response, UploadFile
 from PIL import Image, UnidentifiedImageError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
@@ -67,11 +67,13 @@ def inspect(filename, content):
     return mime
 
 @router.get("/assets", response_model=Page[Asset])
-def list_assets(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0):
+def list_assets(session: Db, actor: Identity, limit: Limit = 20, offset: Offset = 0, q: str = Query("", max_length=200)):
     actor.scope("asset.upload", "asset")
-    owned = assets.c.owner_id == actor.id
-    items = select(assets.c.id, assets.c.filename, assets.c.mime, assets.c.size_bytes).where(owned)
-    return page(session, items.order_by(assets.c.id.desc()), count(assets, owned), limit, offset)
+    conditions = [assets.c.owner_id == actor.id]
+    if keyword := q.strip():
+        conditions.append(assets.c.filename.icontains(keyword, autoescape=True))
+    items = select(assets.c.id, assets.c.filename, assets.c.mime, assets.c.size_bytes).where(*conditions)
+    return page(session, items.order_by(assets.c.id.desc()), count(assets, *conditions), limit, offset)
 
 @router.post("/assets", status_code=201, response_model=Asset)
 def upload(request: Request, session: Db, actor: Identity, file: UploadFile = File(...)):
