@@ -17,7 +17,7 @@ docker compose up --build -d --wait
 - OpenAPI JSON  [http://localhost:8080/api/openapi.json](http://localhost:8080/api/openapi.json)
 - 停止服务  `docker compose down`。命名卷保留数据库和附件。
 
-容器启动时执行 Alembic 迁移与幂等种子脚本。首次构建需要拉取镜像和依赖。构建后，默认 Mock 模式可离线走完全部业务流程。
+容器启动时执行 Alembic 迁移与幂等种子脚本。`--wait` 会等到 API 健康、前端首页可访问且 API 代理连通。首次构建需要拉取镜像和依赖。构建后，默认 Mock 模式可离线走完全部业务流程。 [Compose 启动说明](https://docs.docker.com/reference/cli/docker/compose/up/)
 
 镜像已经构建且配置为默认离线模式时，可使用 `docker compose up --no-build -d --wait` 启动。
 
