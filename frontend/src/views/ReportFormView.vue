@@ -8,6 +8,7 @@ import { hasGrant, user } from '../auth'
 import AssetPicker from '../components/AssetPicker.vue'
 import QueryPreview from '../components/QueryResult.vue'
 import QuestionPlanner from '../components/QuestionPlanner.vue'
+import WorkspaceTabLink from '../components/WorkspaceTabLink.vue'
 import { type AnalysisContext, type Asset, type Dataset, type Page, type QueryDetail, type QueryPlan, type QueryResult, type Report, type ReportQueryScope, type Scope } from '../types'
 
 interface CatalogEntry { code: string; name: string; description: string; values?: string[] }
@@ -327,7 +328,7 @@ async function save() {
       </template>
       <template v-if="result">
         <p v-if="queryId" class="muted">来源 ·
-          <RouterLink v-if="hasGrant('query.read')" class="text-link" :to="{ name: 'queries', query: { id: queryId } }" target="_blank" rel="noopener">查询记录 #{{ queryId }}</RouterLink>
+          <WorkspaceTabLink v-if="hasGrant('query.read')" :to="{ name: 'queries', query: { id: queryId } }">查询记录 #{{ queryId }}</WorkspaceTabLink>
           <span v-else>查询记录 #{{ queryId }}</span>
         </p>
         <div v-if="queryChanged" class="plan-feedback" aria-live="polite">

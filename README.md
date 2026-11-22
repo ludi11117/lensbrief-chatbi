@@ -145,7 +145,7 @@ erDiagram
 
 可选的模型辅助用于匹配规则未识别的指标或维度，例如「比较各款的下单笔数」。页面会标注解析来源和数据范围，日期与范围由服务端确定。
 
-查询历史中的个人成功查询可直接用于新建报告。表单带入原指标、维度、日期和已保存的结果。原上下文仍有效时，表单也会选中上下文并带入分析目标，便于继续提问。查询详情可用地址栏链接打开，报告编辑页可在新标签页查看来源。链接仍按访问账号的权限校验。 [Metabase 保存结果的复用设计](https://github.com/metabase/metabase/blob/master/docs/questions/native-editor/referencing-saved-questions-in-queries.md)
+查询历史中的个人成功查询可直接用于新建报告。表单带入原指标、维度、日期和已保存的结果。原上下文仍有效时，表单也会选中上下文并带入分析目标，便于继续提问。报告编辑页可在新标签页查看来源，沿用当前登录会话并保留表单输入。链接仍按访问账号的权限校验。 [Metabase 保存结果的复用设计](https://github.com/metabase/metabase/blob/master/docs/questions/native-editor/referencing-saved-questions-in-queries.md)
 
 这里参考了 Apache Superset 的指标／维度查询接口，以及 WrenAI 将语义目录与访问控制结合的做法。LensBrief 将两者的设计应用到本地 SQLite 和报告确认流程。 [Apache Superset 语义层](https://github.com/apache/superset/blob/master/docs/docs/using-superset/using-ai-with-superset.mdx#query-the-semantic-layer) · [WrenAI 核心语义引擎](https://github.com/Canner/WrenAI/tree/main/core/wren-core/core)
 
