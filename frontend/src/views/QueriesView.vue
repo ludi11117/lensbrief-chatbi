@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
 import { dateText, scopeText, type Page, type QueryDetail, type QueryLog, type Scope } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const contextId = computed(() => typeof route.query.context === 'string' ? route.query.context : undefined)
+const detailId = computed(() => {
+  const id = typeof route.query.id === 'string' ? Number(route.query.id) : 0
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+})
+const dialog = computed({
+  get: () => detailId.value !== null,
+  set: (open: boolean) => { if (!open) selectDetail(null) },
+})
 const data = ref<QueryLog[]>([])
 const total = ref(0)
 const current = ref(1)
@@ -16,8 +25,8 @@ const start = ref('')
 const end = ref('')
 const error = ref('')
 const busy = ref(false)
-const dialog = ref(false)
 const detail = ref<QueryDetail>()
+const detailError = ref('')
 const labels: Record<string, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
 let seq = 0
 async function load() {
@@ -32,12 +41,23 @@ async function load() {
 }
 function filter() { current.value = 1; void load() }
 function reset() { userId.value = undefined; start.value = ''; end.value = ''; filter() }
-async function open(id: number) {
-  try { detail.value = await api('/queries/' + id); dialog.value = true }
-  catch (err) { error.value = errorText(err) }
+function selectDetail(id: number | null) {
+  void router.replace({ query: { ...route.query, id: id?.toString() } })
 }
 onMounted(load)
 watch(contextId, filter)
+watch(detailId, async (id, _previous, onCleanup) => {
+  detail.value = undefined
+  detailError.value = ''
+  if (id === null) return
+  const controller = new AbortController()
+  onCleanup(() => controller.abort())
+  try {
+    detail.value = await api<QueryDetail>('/queries/' + id, { signal: controller.signal })
+  } catch (err) {
+    if (!controller.signal.aborted) detailError.value = errorText(err)
+  }
+}, { immediate: true })
 </script>
 <template>
   <div class="page-title"><h1>查询记录</h1><p>查看指标查询的执行时间、范围、返回行数和结果。</p></div>
@@ -60,13 +80,17 @@ watch(contextId, filter)
       <el-table-column label="执行状态" width="105"><template #default="{ row }"><el-tag :type="row.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[row.status] ?? row.status }}</el-tag></template></el-table-column>
       <el-table-column label="结果行数" prop="row_count" width="100" />
       <el-table-column label="执行时间（UTC）" min-width="168"><template #default="{ row }">{{ dateText(row.created_at, 'UTC') }}</template></el-table-column>
-      <el-table-column label="操作" width="82"><template #default="{ row }"><el-button text type="primary" @click="open(row.id)">详情</el-button></template></el-table-column>
+      <el-table-column label="操作" width="82"><template #default="{ row }"><el-button text type="primary" @click="selectDetail(row.id)">详情</el-button></template></el-table-column>
     </el-table>
     <div class="pagination"><el-pagination v-model:current-page="current" :page-size="15" :total="total" background layout="prev, pager, next" @current-change="load" /></div>
   </section>
-  <el-dialog v-model="dialog" :title="'查询记录 #' + detail?.id" width="min(720px, 94vw)">
-    <QueryPreview v-if="detail?.result" :result="detail.result" :export-name="'query-' + detail.id" />
-    <h3>查询参数</h3><pre class="json-box">{{ JSON.stringify(detail?.filters, null, 2) }}</pre>
+  <el-dialog v-model="dialog" :title="detailId ? '查询记录 #' + detailId : '查询记录'" width="min(720px, 94vw)">
+    <el-alert v-if="detailError" type="error" :title="detailError" :closable="false" show-icon />
+    <template v-else-if="detail">
+      <QueryPreview v-if="detail.result" :result="detail.result" :export-name="'query-' + detail.id" />
+      <h3>查询参数</h3><pre class="json-box">{{ JSON.stringify(detail.filters, null, 2) }}</pre>
+    </template>
+    <p v-else class="muted" role="status">正在加载查询详情…</p>
     <template #footer>
       <RouterLink v-if="detail?.result && detail.user_id === user?.id && detail.scope !== 'all' && hasGrant('report.create')"
                   class="text-link" :to="{ name: 'create', query: { fromQuery: detail.id } }">用此结果新建报告</RouterLink>

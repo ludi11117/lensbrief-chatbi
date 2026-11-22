@@ -296,7 +296,10 @@ async function save() {
         </template>
       </template>
       <template v-if="result">
-        <p v-if="queryId" class="muted">来源 · 查询记录 #{{ queryId }}</p>
+        <p v-if="queryId" class="muted">来源 ·
+          <RouterLink v-if="hasGrant('query.read')" class="text-link" :to="{ name: 'queries', query: { id: queryId } }" target="_blank" rel="noopener">查询记录 #{{ queryId }}</RouterLink>
+          <span v-else>查询记录 #{{ queryId }}</span>
+        </p>
         <div v-if="queryChanged" class="plan-feedback" aria-live="polite">
           <p>下方仍为上次查询结果。请运行新查询，或恢复上次查询条件。</p>
           <el-button text type="primary" :disabled="querying || planning" @click="restoreConditions">恢复上次查询条件</el-button>
