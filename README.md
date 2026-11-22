@@ -19,7 +19,7 @@ docker compose up --build -d --wait
 
 容器启动时执行 Alembic 迁移与幂等种子脚本。`--wait` 会等到 API 健康、前端首页可访问且 API 代理连通。首次构建需要拉取镜像和依赖。构建后，默认 Mock 模式可离线走完全部业务流程。 [Compose 启动说明](https://docs.docker.com/reference/cli/docker/compose/up/)
 
-镜像已经构建且配置为默认离线模式时，可使用 `docker compose up --no-build -d --wait` 启动。
+镜像已经构建且配置为默认离线模式时，可使用 `docker compose up --no-build --pull never -d --wait` 启动。Verify 工作流会在浏览器测试后用这个命令重启，并核对报告数量。
 
 ### Windows 本地启动
 

@@ -31,6 +31,16 @@ jobs:
         working-directory: frontend
       - run: npm run test:browser
         working-directory: frontend
+      - name: Verify an offline restart preserves reports
+        run: |
+          report_count() {
+            docker compose exec -T api python -c 'import sqlite3; from backend.app.settings import Settings; print(sqlite3.connect(Settings.from_env().database).execute("SELECT COUNT(*) FROM report").fetchone()[0])'
+          }
+          before="$(report_count)"
+          test "$before" -gt 2
+          docker compose down
+          docker compose up --no-build --pull never -d --wait
+          test "$(report_count)" = "$before"
       - name: Container logs
         if: failure()
         run: docker compose logs --no-color
