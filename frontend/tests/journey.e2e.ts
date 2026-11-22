@@ -145,7 +145,14 @@ test('登录、草稿、附件、发布、版本对比和回滚、403、查询�
   await expect(page.getByRole('columnheader', { name: '执行时间（UTC）' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'analyst' }).first()).toBeVisible()
   await page.getByRole('spinbutton', { name: '用户 ID' }).fill('1')
+  await page.getByRole('combobox', { name: '执行状态' }).press('ArrowDown')
+  await page.getByRole('option', { name: '成功', exact: true }).click()
+  const byState = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/queries' && url.searchParams.get('status') === 'ok'
+  })
   await page.getByRole('button', { name: '筛选' }).click()
+  expect((await byState).status()).toBe(200)
   await expect(page.getByRole('cell', { name: 'analyst' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: '权限管理' })).toHaveCount(0)
   await page.getByRole('button', { name: /周宁/ }).click()

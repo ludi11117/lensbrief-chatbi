@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, errorText, params } from '../api'
 import { hasGrant, user } from '../auth'
 import QueryPreview from '../components/QueryResult.vue'
-import { dateText, scopeText, type Page, type QueryDetail, type QueryLog, type Scope } from '../types'
+import { dateText, scopeText, type Page, type QueryDetail, type QueryLog, type QueryStatus, type Scope } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,13 +21,14 @@ const data = ref<QueryLog[]>([])
 const total = ref(0)
 const current = ref(1)
 const userId = ref<number>()
+const status = ref<QueryStatus>()
 const start = ref('')
 const end = ref('')
 const error = ref('')
 const busy = ref(false)
 const detail = ref<QueryDetail>()
 const detailError = ref('')
-const labels: Record<string, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
+const labels: Record<QueryStatus, string> = { ok: '成功', denied: '越权', invalid: '参数错误', error: '执行错误' }
 let seq = 0
 async function load() {
   const request = ++seq
@@ -35,12 +36,12 @@ async function load() {
   error.value = ''
   try {
     const result = await api<Page<QueryLog>>('/queries' + params({ user_id: userId.value, context_id: contextId.value, start: start.value, end: end.value,
-      limit: 15, offset: (current.value - 1) * 15 }))
+      status: status.value, limit: 15, offset: (current.value - 1) * 15 }))
     if (seq === request) { data.value = result.items; total.value = result.total }
   } catch (err) { if (seq === request) error.value = errorText(err) } finally { if (seq === request) busy.value = false }
 }
 function filter() { current.value = 1; void load() }
-function reset() { userId.value = undefined; start.value = ''; end.value = ''; filter() }
+function reset() { userId.value = undefined; status.value = undefined; start.value = ''; end.value = ''; filter() }
 function selectDetail(id: number | null) {
   void router.replace({ query: { ...route.query, id: id?.toString() } })
 }
@@ -66,6 +67,9 @@ watch(detailId, async (id, _previous, onCleanup) => {
     <div class="section-head"><h2>执行历史</h2><span class="muted">{{ total }} 条记录</span></div>
     <form class="toolbar" @submit.prevent="filter">
       <el-input-number v-model="userId" :min="1" :controls="false" placeholder="用户 ID" aria-label="用户 ID" />
+      <el-select v-model="status" class="status-select" placeholder="执行状态" aria-label="执行状态" clearable>
+        <el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" />
+      </el-select>
       <label class="date-filter">从 <input v-model="start" type="date" aria-label="查询开始日期（UTC）" class="date-input" /></label>
       <label class="date-filter">至 <input v-model="end" type="date" aria-label="查询结束日期（UTC）" class="date-input" /></label>
       <el-button native-type="submit">筛选</el-button><el-button text @click="reset">重置</el-button>
@@ -77,7 +81,7 @@ watch(detailId, async (id, _previous, onCleanup) => {
       <el-table-column prop="dataset_name" label="数据集" min-width="125" />
       <el-table-column prop="metric" label="指标" min-width="105" />
       <el-table-column label="范围" width="75"><template #default="{ row }">{{ scopeText[row.scope as Scope] }}</template></el-table-column>
-      <el-table-column label="执行状态" width="105"><template #default="{ row }"><el-tag :type="row.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[row.status] ?? row.status }}</el-tag></template></el-table-column>
+      <el-table-column label="执行状态" width="105"><template #default="{ row }"><el-tag :type="row.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[row.status as QueryStatus] }}</el-tag></template></el-table-column>
       <el-table-column label="结果行数" prop="row_count" width="100" />
       <el-table-column label="执行时间（UTC）" min-width="168"><template #default="{ row }">{{ dateText(row.created_at, 'UTC') }}</template></el-table-column>
       <el-table-column label="操作" width="82"><template #default="{ row }"><el-button text type="primary" @click="selectDetail(row.id)">详情</el-button></template></el-table-column>
@@ -88,7 +92,7 @@ watch(detailId, async (id, _previous, onCleanup) => {
     <el-alert v-if="detailError" type="error" :title="detailError" :closable="false" show-icon />
     <template v-else-if="detail">
       <div class="inline muted query-detail-meta">
-        <el-tag :type="detail.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[detail.status] ?? detail.status }}</el-tag>
+        <el-tag :type="detail.status === 'ok' ? 'success' : 'danger'" effect="plain">{{ labels[detail.status] }}</el-tag>
         <time :datetime="detail.created_at">{{ dateText(detail.created_at, 'UTC') }} UTC</time>
         <span>耗时 {{ detail.elapsed_ms }} ms</span>
         <span>返回 {{ detail.row_count }} 行</span>

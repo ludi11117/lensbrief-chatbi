@@ -30,7 +30,7 @@
 | `GET /datasets/{id}/dimensions` | 维度编码、名称与口径分页 | dataset.read |
 | `POST /queries/plan` | 将提问解析成可确认的指标、维度、日期和范围 | dataset.query，上下文限本人 |
 | `POST /queries` | 执行聚合并写查询日志，返回查询 ID 和结果，HTTP 201 | dataset.query |
-| `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end` | query.read，上下文筛选限本人 |
+| `GET /queries` | 查询日志分页，支持 `user_id`、`context_id`、`start`、`end`、`status` | query.read，上下文筛选限本人 |
 | `GET /queries/{id}` | 查询条件及结果，适用当前有效数据范围。上下文 ID 仅向执行者返回 | query.read |
 | `POST /drafts/generate` | 按已有聚合生成草稿，返回草稿字段和模式 | report.create、query.read |
 | `GET /knowledge/packs` | 知识包分页，可按 `dataset_id` 筛选 | dataset.read |
@@ -69,7 +69,7 @@
 }
 ```
 
-`scope` 可省略，默认采用当前权限的最广数据范围。指定超出授权的范围会返回 403。查询日期包含两端，最长 366 天。查询日志的日期筛选以 UTC 日期为准，含起止日。成功、越权、参数错误和执行失败均写入日志。上下文校验失败的记录仅出现在通用查询历史中。无法通过请求结构校验的请求，以及指向不存在数据集的请求，在记录前终止。
+`scope` 可省略，默认采用当前权限的最广数据范围。指定超出授权的范围会返回 403。查询日期包含两端，最长 366 天。查询日志的日期筛选以 UTC 日期为准，含起止日。可用 `status=ok|denied|invalid|error` 中的一个值筛选执行状态。上下文校验失败的记录仅出现在通用查询历史中。无法通过请求结构校验的请求，以及指向不存在数据集的请求，在记录前终止。
 
 对渠道、产品或部门分组可发送 `compare_previous: true`。服务端使用当前范围前方紧邻的等长区间，在相同权限和指标口径下汇总，并返回 `comparison` 内的 `start`、`end`、`rows`。未勾选对照时该字段为 `null`。查询日志的 `row_count` 仍为本期行数，报告快照会保存两期。
 

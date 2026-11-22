@@ -12,7 +12,7 @@ from ..auth import Db, Denied, Identity, SCOPE_RANK, scope_filter
 from ..db import begin_write, json_dump, utc_now
 from ..model_client import ModelConfigurationError, ModelResponseError, complete_json
 from ..models import datasets, departments, dimensions, metrics, query_logs, sales, users
-from ..outputs import CatalogRow, Dimension, GeneratedDraft, Metric, Page, QueryDetail, QueryLog, QueryPlan, QueryResult
+from ..outputs import CatalogRow, Dimension, GeneratedDraft, Metric, Page, QueryDetail, QueryLog, QueryPlan, QueryResult, QueryStatus
 from ..planning import MissingAxes, PlanError, resolve_model_axes, resolve_question
 from ..schemas import DraftInput, DraftOutput, QueryInput, QueryPlanInput
 from .common import Limit, Offset, count, page, take
@@ -193,7 +193,8 @@ def query(payload: QueryInput, session: Db, actor: Identity):
 @router.get("/queries", response_model=Page[QueryLog])
 def list_queries(session: Db, actor: Identity, user_id: int | None = None,
                  context_id: int | None = None,
-                 start: date | None = None, end: date | None = None, limit: Limit = 20, offset: Offset = 0):
+                 start: date | None = None, end: date | None = None, status: QueryStatus | None = None,
+                 limit: Limit = 20, offset: Offset = 0):
     scope = actor.scope("query.read", "query")
     if start and end and start > end:
         raise HTTPException(422, "开始日期不能晚于结束日期。")
@@ -202,6 +203,8 @@ def list_queries(session: Db, actor: Identity, user_id: int | None = None,
                   or_(query_logs.c.scope.in_(allowed_scopes), query_logs.c.status != "ok")]
     if user_id is not None:
         conditions.append(query_logs.c.user_id == user_id)
+    if status is not None:
+        conditions.append(query_logs.c.status == status)
     if context_id is not None:
         owned_context(session, actor, context_id)
         conditions.append(query_logs.c.context_id == context_id)

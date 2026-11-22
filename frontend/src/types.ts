@@ -49,9 +49,10 @@ export interface VersionDiff {
   changes: { field: string; before: unknown; after: unknown }[]
   query_changes: VersionDiff['changes']
 }
+export type QueryStatus = 'ok' | 'denied' | 'invalid' | 'error'
 export interface QueryLog {
   id: number; user_id: number; username: string; dataset_name: string; metric: string; dimension: string
-  scope: Scope; status: string; row_count: number; elapsed_ms: number; created_at: string
+  scope: Scope; status: QueryStatus; row_count: number; elapsed_ms: number; created_at: string
 }
 export interface QueryDetail extends Omit<QueryLog, 'username' | 'dataset_name'> {
   dataset_id: number

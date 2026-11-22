@@ -290,6 +290,10 @@ def test_catalog_and_query_scope_logging_and_mock(client, auth, query_body):
     assert sum(r["value"] for r in department["rows"]) > sum(r["value"] for r in data["rows"])
     logs = client.get("/api/queries?user_id=1&start=2026-01-01&end=2099-12-31", headers=auth("admin")).json()
     assert [item["status"] for item in logs["items"]] == ["invalid", "denied", "ok"]
+    filtered = client.get("/api/queries", headers=headers, params={"status": "denied", "user_id": 1}).json()
+    assert [row["status"] for row in filtered["items"]] == ["denied"]
+    assert filtered["total"] == 1
+    assert client.get("/api/queries", headers=headers, params={"status": "unknown"}).status_code == 422
     assert client.get(f"/api/queries/{data['id']}", headers=auth("overseas")).status_code == 403
 
 def test_admin_changes_role_and_existing_token_receives_new_permissions(client, auth):

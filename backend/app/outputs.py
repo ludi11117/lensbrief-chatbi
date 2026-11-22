@@ -7,6 +7,7 @@ from .schemas import DraftOutput, KnowledgeItemInput, QueryInput
 
 T = TypeVar("T")
 Scope = Literal["own", "department", "all"]
+QueryStatus = Literal["ok", "denied", "invalid", "error"]
 Status = Literal["draft", "published", "archived"]
 
 class Page(BaseModel, Generic[T]):
@@ -138,7 +139,7 @@ class QueryRecord(BaseModel):
     metric: str
     dimension: str
     scope: Scope
-    status: Literal["ok", "denied", "invalid", "error"]
+    status: QueryStatus
     elapsed_ms: int
     row_count: int
     created_at: str
