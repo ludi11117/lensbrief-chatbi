@@ -15,7 +15,7 @@
 
 追问事务时，在 `backend/tests/test_api.py` 打开 `test_publish_failure_rolls_back_status_version_attachments_and_audit`。用例在写入审计行后注入异常，再用独立数据库会话验证报告、版本、附件关联和审计一起撤销。
 
-追问性能时，可对照 [原始样本](benchmarks/samples.csv) 和 [查询计划](benchmarks/summary.json)。
+追问性能时，可打开查询计划中的 `owner_first` 和 `department_first`。同一批一万条合成报告，分析师可见 3,334 条，主管可见 6,667 条。两次查询分别使用报告所有者索引和部门索引。计时原始记录可以重算 P50 和 P95。 [原始样本](benchmarks/samples.csv) · [查询计划](benchmarks/summary.json)
 
 可把开始时的「新建报告」换成「分析上下文」里的「新建报告」。演示前创建「十月渠道复盘」上下文并选择「渠道销售复盘」知识包。运行销售额查询后可展开「知识包 v1」查看口径，也可追问「改按产品」，核对沿用的指标和日期。回到上下文可查看两次执行记录。
 

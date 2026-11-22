@@ -12,8 +12,9 @@
   "samples_per_case": 100,
   "cases": {
     "all_first": {
-      "p50_ms": 0.6601,
-      "p95_ms": 0.9568,
+      "p50_ms": 0.6455,
+      "p95_ms": 0.7319,
+      "scope": "all",
       "total": 10000,
       "returned": 20,
       "offset": 0,
@@ -29,8 +30,9 @@
       }
     },
     "all_deep": {
-      "p50_ms": 4.6431,
-      "p95_ms": 5.786,
+      "p50_ms": 4.6678,
+      "p95_ms": 5.4662,
+      "scope": "all",
       "total": 10000,
       "returned": 20,
       "offset": 9000,
@@ -46,8 +48,9 @@
       }
     },
     "status_first": {
-      "p50_ms": 0.5877,
-      "p95_ms": 0.8395,
+      "p50_ms": 0.7081,
+      "p95_ms": 1.0864,
+      "scope": "all",
       "total": 3333,
       "returned": 20,
       "offset": 0,
@@ -63,8 +66,9 @@
       }
     },
     "status_deep": {
-      "p50_ms": 1.7153,
-      "p95_ms": 2.19,
+      "p50_ms": 2.4045,
+      "p95_ms": 3.484,
+      "scope": "all",
       "total": 3333,
       "returned": 20,
       "offset": 3000,
@@ -80,8 +84,9 @@
       }
     },
     "keyword_first": {
-      "p50_ms": 12.5753,
-      "p95_ms": 14.7901,
+      "p50_ms": 12.3734,
+      "p95_ms": 13.8498,
+      "scope": "all",
       "total": 2000,
       "returned": 20,
       "offset": 0,
@@ -94,6 +99,42 @@
         "count": [
           "SCAN report USING INDEX ix_report_live_updated_id",
           "SEARCH report_version USING INDEX sqlite_autoindex_report_version_1 (report_id=? AND number=?) LEFT-JOIN"
+        ]
+      }
+    },
+    "owner_first": {
+      "p50_ms": 0.5267,
+      "p95_ms": 0.6632,
+      "scope": "own",
+      "total": 3334,
+      "returned": 20,
+      "offset": 0,
+      "plan": {
+        "items": [
+          "SEARCH user USING INTEGER PRIMARY KEY (rowid=?)",
+          "SEARCH report USING INDEX ix_report_live_owner_updated_id (owner_id=?)",
+          "SEARCH report_version USING INDEX sqlite_autoindex_report_version_1 (report_id=? AND number=?) LEFT-JOIN"
+        ],
+        "count": [
+          "SEARCH report USING INDEX ix_report_live_owner_updated_id (owner_id=?)"
+        ]
+      }
+    },
+    "department_first": {
+      "p50_ms": 0.6355,
+      "p95_ms": 1.0696,
+      "scope": "department",
+      "total": 6667,
+      "returned": 20,
+      "offset": 0,
+      "plan": {
+        "items": [
+          "SEARCH report USING INDEX ix_report_live_department_updated_id (department_id=?)",
+          "SEARCH report_version USING INDEX sqlite_autoindex_report_version_1 (report_id=? AND number=?) LEFT-JOIN",
+          "SEARCH user USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "count": [
+          "SEARCH report USING INDEX ix_report_live_department_updated_id (department_id=?)"
         ]
       }
     }

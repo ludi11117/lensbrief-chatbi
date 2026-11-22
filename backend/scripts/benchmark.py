@@ -12,14 +12,14 @@ from time import perf_counter_ns
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.app.api.common import page
 from backend.app.api.reports import listing_statements
-from backend.app.auth import Actor
+from backend.app.auth import load_actor
 from backend.app.db import ROOT, json_dump, sqlite_engine
-from backend.app.models import reports, versions
+from backend.app.models import reports, users, versions
 from backend.scripts.seed import seed
 
 SAMPLES = 100
@@ -27,26 +27,32 @@ WARMUP = 10
 ROWS = 10_000
 LIMIT = 20
 CASES = [
-    ("all_first", None, "", 0),
-    ("all_deep", None, "", 9000),
-    ("status_first", "published", "", 0),
-    ("status_deep", "published", "", 3000),
-    ("keyword_first", None, "渠道月报", 0),
+    ("all_first", "admin", None, "", 0),
+    ("all_deep", "admin", None, "", 9000),
+    ("status_first", "admin", "published", "", 0),
+    ("status_deep", "admin", "published", "", 3000),
+    ("keyword_first", "admin", None, "渠道月报", 0),
+    ("owner_first", "analyst", None, "", 0),
+    ("department_first", "manager", None, "", 0),
 ]
-ACTOR = Actor(4, "admin", "管理员", 1, ["admin"], {"report.read": "all", "report.edit": "all"})
 
 def fill(session):
     seed(session)
     session.execute(delete(reports))
     base = datetime(2026, 10, 1, tzinfo=timezone.utc)
-    rows = [
-        {"id": i + 1, "title": f"{'渠道月报' if i % 5 == 0 else '销售复盘'} {i:05}", "description": "分页基准合成记录",
-         "content": "基准占位正文", "owner_id": (i % 2) + 1, "department_id": 1, "dataset_id": 1,
-         "status": ("draft", "published", "archived")[i % 3],
-         "created_at": base.isoformat(timespec="microseconds"),
-         "updated_at": (base + timedelta(seconds=i)).isoformat(timespec="microseconds")}
-        for i in range(ROWS)
-    ]
+    owners = session.execute(select(users.c.id, users.c.department_id)
+                             .where(users.c.username.in_(("analyst", "manager", "overseas")))
+                             .order_by(users.c.id)).all()
+    rows = []
+    statuses = ("draft", "published", "archived")
+    for i in range(ROWS):
+        owner = owners[(i // len(statuses)) % len(owners)]
+        rows.append({
+            "id": i + 1, "title": f"{'渠道月报' if i % 5 == 0 else '销售复盘'} {i:05}", "description": "分页基准合成记录",
+            "content": "基准占位正文", "owner_id": owner.id, "department_id": owner.department_id, "dataset_id": 1,
+            "status": statuses[i % len(statuses)], "created_at": base.isoformat(timespec="microseconds"),
+            "updated_at": (base + timedelta(seconds=i)).isoformat(timespec="microseconds"),
+        })
     session.execute(insert(reports), rows)
     session.execute(insert(versions), [
         {"report_id": row["id"], "number": 1, "created_by": row["owner_id"], "created_at": row["updated_at"],
@@ -66,8 +72,10 @@ def percentile(values, p):
 
 def measure(session):
     data, summary = [], {}
-    for name, status, keyword, offset in CASES:
-        statement, total = listing_statements(ACTOR, status, keyword)
+    actors = {row.username: load_actor(session, row) for row in session.execute(select(users))}
+    for name, username, status, keyword, offset in CASES:
+        actor = actors[username]
+        statement, total = listing_statements(actor, status, keyword)
         plans = {"items": explain(session, statement.limit(LIMIT).offset(offset)), "count": explain(session, total)}
         for _ in range(WARMUP):
             page(session, statement, total, LIMIT, offset)
@@ -80,7 +88,8 @@ def measure(session):
             values.append(elapsed_ms)
             data.append((name, sample, f"{elapsed_ms:.6f}"))
         summary[name] = {"p50_ms": round(percentile(values, .5), 6), "p95_ms": round(percentile(values, .95), 6),
-                         "total": result["total"], "returned": len(result["items"]), "offset": offset, "plan": plans}
+                         "scope": actor.grants["report.read"], "total": result["total"],
+                         "returned": len(result["items"]), "offset": offset, "plan": plans}
     return data, summary
 
 def main():
