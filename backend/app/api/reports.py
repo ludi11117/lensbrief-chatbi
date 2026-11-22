@@ -11,6 +11,7 @@ from ..db import as_dict, begin_write, json_dump, utc_now
 from ..models import assets, datasets, query_logs, report_assets, report_feedback, reports, users, version_assets, versions
 from ..outputs import DiffResult, FeedbackEntry, Page, PublishResult, Report, ReportRow, ReportSummary, Version, VersionEntry
 from ..schemas import FeedbackInput, ReportInput
+from .catalog import get_query
 from .common import Limit, Offset, count, page, take
 
 router = APIRouter(prefix="/reports", tags=["报告及版本"])
@@ -66,8 +67,7 @@ def validate_work(session, actor, payload, owner, department, existing_assets, e
         actor.scope("dataset.read", "dataset", payload.dataset_id)
         take(session, datasets, payload.dataset_id, "数据集")
     if payload.query_id is not None and payload.query_id != existing_query:
-        query = take(session, query_logs, payload.query_id, "查询记录")
-        actor.require("query.read", "query", query, owner="user_id")
+        query = get_query(session, actor, payload.query_id)
         if query["scope"] == "all" or query["department_id"] != department or (
             query["scope"] == "own" and query["user_id"] != owner
         ):

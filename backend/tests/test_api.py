@@ -334,3 +334,22 @@ def test_department_cannot_read_or_attach_admin_global_query(client, auth, query
     assert client.get("/api/queries", headers=manager).json()["total"] == 0
     assert client.get(f"/api/queries/{query_id}", headers=manager).status_code == 403
     assert client.post("/api/reports", headers=admin, json={**body, "query_id": query_id}).status_code == 403
+
+def test_new_report_query_links_observe_the_current_role(client, auth, query_body, body):
+    manager = auth("manager")
+    admin = auth("admin")
+    query = client.post("/api/queries", headers=manager, json=query_body).json()
+    assert query["scope"] == "department"
+    report_id = make_report(client, manager, body)
+    me = client.get("/api/auth/me", headers=manager).json()
+    changed = client.put(f"/api/access/users/{me['id']}/roles", headers=admin, json={"roles": ["analyst"]})
+    assert changed.status_code == 200
+
+    linked = {**body, "query_id": query["id"]}
+    assert client.post("/api/reports", headers=manager, json=linked).status_code == 403
+    assert client.put(f"/api/reports/{report_id}", headers=manager, json=linked).status_code == 403
+    assert client.get(f"/api/reports/{report_id}", headers=manager).json()["query_id"] is None
+    assert client.get("/api/reports", headers=manager).json()["total"] == 1
+    denied = client.get("/api/audit?action=access.denied", headers=admin).json()["items"]
+    assert len(denied) == 2
+    assert all(row["detail"]["permission"] == "query.read" and row["resource_id"] == query["id"] for row in denied)
