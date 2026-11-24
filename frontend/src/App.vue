@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Activity, BookOpen, ChevronDown, Database, FileBarChart2, Folders, ScanLine, ShieldCheck } from '@lucide/vue'
+import BrandMark from './components/BrandMark.vue'
+import { Activity, BookOpen, ChevronDown, Database, FileBarChart2, Folders, ShieldCheck } from '@lucide/vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { hasGrant, signOut, user } from './auth'
@@ -23,9 +24,10 @@ function logout() {
   <el-config-provider :locale="zhCn">
   <RouterView v-if="route.name === 'login'" />
   <div v-else class="shell">
+    <a class="skip-link" href="#workspace-content">跳到主要内容</a>
     <aside class="sidebar">
       <RouterLink to="/reports" class="brand">
-        <span class="brand-mark"><ScanLine :size="21" /></span>
+        <BrandMark />
         <span><strong>LensBrief</strong><small>数据运营工作台</small></span>
       </RouterLink>
       <nav aria-label="工作台导航">
@@ -36,7 +38,7 @@ function logout() {
           </RouterLink>
         </template>
       </nav>
-      <div class="sidebar-foot"><Activity :size="15" /><span>运动相机销售数据集</span></div>
+      <div class="sidebar-foot"><Activity :size="15" /><span>运动相机销售数据集<small>演示环境 / 2026.10</small></span></div>
     </aside>
     <div class="workspace">
       <header class="topbar">
@@ -46,7 +48,7 @@ function logout() {
           <template #dropdown><el-dropdown-menu><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
         </el-dropdown>
       </header>
-      <main class="content"><RouterView :key="route.path" /></main>
+      <main id="workspace-content" class="content" tabindex="-1"><RouterView :key="route.path" /></main>
     </div>
   </div>
   </el-config-provider>
