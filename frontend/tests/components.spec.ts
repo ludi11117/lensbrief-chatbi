@@ -44,6 +44,7 @@ const global = {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })))
   vi.mocked(api).mockReset().mockResolvedValue({ items: [], total: 12, limit: 10, offset: 0 })
   useRoute().query = {}
   user.value = { id: 1, username: 'analyst', name: '运营', department_id: 1, roles: [], grants: { 'report.read': 'own' } }
